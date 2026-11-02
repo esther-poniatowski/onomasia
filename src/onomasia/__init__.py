@@ -1,5 +1,9 @@
 """
-Initialization logic and public interface for the `onomasia` package.
+Glossaries and notations of texts: their records, their composition, their checks, and the macros
+that print their symbols.
+
+The public interface loads the configuration of a consumer, checks its records, and exposes the
+typed records and the ports through which a consumer supplies them.
 
 Variables
 ---------
@@ -33,6 +37,13 @@ PackageNotFoundError
 from importlib.metadata import version, PackageNotFoundError
 import platform
 
+from .configuration import Configuration, default_configuration, load_configuration
+from .errors import ConfigurationError, OnomasiaError
+from .issues import Issue, Severity
+from .records.model import Entry, LexicalRule, Record, RecordKind, Term, TypographicClass
+from .repository import FileRecordSource, RawDocument, RecordSource
+from .service import check_records
+
 try:
     if __package__ is None:  # erroneous script execution
         raise PackageNotFoundError
@@ -40,7 +51,27 @@ try:
 except PackageNotFoundError:
     __version__ = "0.0.0+unknown"
 
-__all__ = ["info", "__version__"]
+__all__ = [
+    "Configuration",
+    "ConfigurationError",
+    "Entry",
+    "FileRecordSource",
+    "Issue",
+    "LexicalRule",
+    "OnomasiaError",
+    "RawDocument",
+    "Record",
+    "RecordKind",
+    "RecordSource",
+    "Severity",
+    "Term",
+    "TypographicClass",
+    "check_records",
+    "default_configuration",
+    "info",
+    "load_configuration",
+    "__version__",
+]
 
 
 def info() -> str:

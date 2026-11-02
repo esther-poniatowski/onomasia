@@ -1,0 +1,110 @@
+# Catalog of the checks of Onomasia, with the default severity of each, and the default
+# vocabularies. A consumer overrides a severity, or sets it to off, and replaces a vocabulary, in
+# its own onomasia.yml; it cannot name a check absent from this catalog.
+
+checks:
+  invalid-yaml:
+    severity: error
+    gloss: the record does not parse as YAML
+  duplicate-key:
+    severity: error
+    gloss: a mapping repeats a key, whose earlier value the parser would drop
+  unknown-format:
+    severity: error
+    gloss: the record names no format of Onomasia under its key _schema
+  wrong-format:
+    severity: error
+    gloss: the record matches the paths of one format and declares another
+  schema-violation:
+    severity: error
+    gloss: the record breaks the schema of its format
+  duplicate-record:
+    severity: error
+    gloss: two records of one format share an identifier
+  unresolved-import:
+    severity: error
+    gloss: an import names no record of the format of the importing record
+  import-cycle:
+    severity: error
+    gloss: the imports of a record lead back to it
+  unresolved-import-entry:
+    severity: error
+    gloss: an import selects or excludes an entry absent from its source
+  import-conflict:
+    severity: error
+    gloss: two merged sources supply one identifier with different entries
+  duplicate-alias:
+    severity: error
+    gloss: two imports of one record bind the same alias
+  duplicate-entry:
+    severity: error
+    gloss: two sections of one record declare the same identifier
+  unresolved-reference:
+    severity: error
+    gloss: a reference names no entry visible from its record
+  unknown-status:
+    severity: error
+    gloss: a status is absent from the vocabulary of statuses
+  missing-replacement:
+    severity: error
+    gloss: an entry of a status requiring a replacement names none
+  unknown-context:
+    severity: error
+    gloss: a context names a dimension or a value absent from the vocabulary of contexts
+  unknown-relation:
+    severity: error
+    gloss: a relation of a term is absent from the vocabulary of relations
+  form-collision:
+    severity: error
+    gloss: two terms of one composed glossary share a written form
+  rule-shadows-term:
+    severity: error
+    gloss: a lexical rule forbids a written form of a term of the same composed glossary
+  missing-body:
+    severity: error
+    gloss: a notation entry gives neither a body nor a base under a class with a template
+  ambiguous-body:
+    severity: error
+    gloss: a notation entry gives both a body and a base
+  body-collision:
+    severity: error
+    gloss: two entries of one composed notation print the same body
+  undeclared-entry:
+    severity: warning
+    gloss: a notation entry denotes no unit, and its gloss stands for the meaning
+  missing-gloss:
+    severity: error
+    gloss: a notation entry denotes no unit and carries no gloss
+  gloss-with-target:
+    severity: error
+    gloss: a notation entry denotes a unit and also carries a gloss, which the unit states
+  unresolved-overlay:
+    severity: error
+    gloss: an overlay names no notation to overlay
+  unknown-override:
+    severity: error
+    gloss: an overlay overrides an entry or a class absent from the notation it overlays
+  template-without-placeholder:
+    severity: error
+    gloss: the template of a typographic class omits the placeholder of the base
+
+# Vocabularies read by the checks, replaced as a whole by the vocabularies of a consumer.
+vocabulary:
+  # Each status may require a replacement, named by the key replaced_by of its entry.
+  statuses:
+    candidate: {requires_replacement: false}
+    in-use: {requires_replacement: false}
+    ratified: {requires_replacement: false}
+    deprecated: {requires_replacement: true}
+  # Status of an entry that declares none.
+  default_status: in-use
+  # Dimensions of the contexts that an alternative suits, each with its admitted values.
+  contexts: {}
+  # Relations that a term may hold to other terms.
+  relations: [narrows, broadens]
+
+# Typography read by the checks of notations and by the macro table.
+typography:
+  # Placeholder standing for the base of an entry in the template of its class. It differs from
+  # every TeX construct, since # opens the parameters of a macro.
+  base_placeholder: "{{base}}"

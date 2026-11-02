@@ -1,0 +1,51 @@
+# Format of a notation: the symbols of a vocabulary, each naming the unit that it denotes, and the
+# typographic classes whose templates print them.
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: notation.schema.yml
+title: Notation
+type: object
+additionalProperties: false
+required: [_schema, id]
+properties:
+  _schema: {const: 'onomasia:notation@1'}
+  id: {$ref: 'common.schema.yml#/$defs/id'}
+  imports: {$ref: 'common.schema.yml#/$defs/imports'}
+  metadata: {type: object, description: Fields of the consumer, which Onomasia does not read.}
+  classes:
+    type: object
+    propertyNames: {$ref: 'common.schema.yml#/$defs/id'}
+    additionalProperties: {$ref: 'common.schema.yml#/$defs/class'}
+  entries:
+    type: object
+    propertyNames: {$ref: 'common.schema.yml#/$defs/id'}
+    additionalProperties: {$ref: '#/$defs/entry'}
+
+$defs:
+  entry:
+    type: object
+    additionalProperties: false
+    properties:
+      denotes:
+        $ref: 'common.schema.yml#/$defs/text'
+        description: Logical target of the unit that the entry designates.
+      gloss: {$ref: 'common.schema.yml#/$defs/text'}
+      body: {$ref: 'common.schema.yml#/$defs/text'}
+      base: {$ref: 'common.schema.yml#/$defs/text'}
+      class: {$ref: 'common.schema.yml#/$defs/ref'}
+      name:
+        type: string
+        pattern: '^[A-Za-z]+$'
+        description: Macro name, a TeX control word.
+      entry: {type: boolean, description: Whether the macro takes the optional entry argument.}
+      separator: {$ref: 'common.schema.yml#/$defs/text'}
+      status: {$ref: 'common.schema.yml#/$defs/status'}
+      replaced_by: {$ref: 'common.schema.yml#/$defs/ref'}
+      alternatives:
+        type: array
+        items:
+          type: object
+          additionalProperties: false
+          required: [body, when]
+          properties:
+            body: {$ref: 'common.schema.yml#/$defs/text'}
+            when: {$ref: 'common.schema.yml#/$defs/contexts'}

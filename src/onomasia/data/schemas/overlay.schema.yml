@@ -1,0 +1,31 @@
+# Format of an overlay: the changes that one projection applies to a notation. An overlay changes
+# only templates, bodies, bases and classes, so that every macro name, argument and target of the
+# notation holds under it.
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: overlay.schema.yml
+title: Overlay
+type: object
+additionalProperties: false
+required: [_schema, id, overlays]
+properties:
+  _schema: {const: 'onomasia:overlay@1'}
+  id: {$ref: 'common.schema.yml#/$defs/id'}
+  overlays:
+    $ref: 'common.schema.yml#/$defs/id'
+    description: Identifier of the notation that the overlay changes.
+  metadata: {type: object, description: Fields of the consumer, which Onomasia does not read.}
+  classes:
+    type: object
+    propertyNames: {$ref: 'common.schema.yml#/$defs/id'}
+    additionalProperties: {$ref: 'common.schema.yml#/$defs/class'}
+  entries:
+    type: object
+    propertyNames: {$ref: 'common.schema.yml#/$defs/id'}
+    additionalProperties:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        body: {$ref: 'common.schema.yml#/$defs/text'}
+        base: {$ref: 'common.schema.yml#/$defs/text'}
+        class: {$ref: 'common.schema.yml#/$defs/ref'}

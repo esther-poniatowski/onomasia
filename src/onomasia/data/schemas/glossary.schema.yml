@@ -1,0 +1,90 @@
+# Format of a glossary: the admitted terms of a vocabulary, and the lexical rules that forbid
+# other forms, each rule possibly scoped to audiences.
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: glossary.schema.yml
+title: Glossary
+type: object
+additionalProperties: false
+required: [_schema, id]
+properties:
+  _schema: {const: 'onomasia:glossary@1'}
+  id: {$ref: 'common.schema.yml#/$defs/id'}
+  imports: {$ref: 'common.schema.yml#/$defs/imports'}
+  metadata: {type: object, description: Fields of the consumer, which Onomasia does not read.}
+  terms:
+    type: object
+    propertyNames: {$ref: 'common.schema.yml#/$defs/id'}
+    additionalProperties: {$ref: '#/$defs/term'}
+  rules:
+    type: object
+    propertyNames: {$ref: 'common.schema.yml#/$defs/id'}
+    additionalProperties: {$ref: '#/$defs/rule'}
+
+$defs:
+  term:
+    type: object
+    additionalProperties: false
+    required: [label, gloss]
+    properties:
+      label: {$ref: 'common.schema.yml#/$defs/text'}
+      gloss: {$ref: 'common.schema.yml#/$defs/text'}
+      forms:
+        type: array
+        items: {$ref: 'common.schema.yml#/$defs/form'}
+      source: {$ref: 'common.schema.yml#/$defs/text'}
+      status: {$ref: 'common.schema.yml#/$defs/status'}
+      replaced_by: {$ref: 'common.schema.yml#/$defs/ref'}
+      case_sensitive: {type: boolean}
+      frames:
+        type: array
+        items: {type: string, pattern: '~'}
+      alternatives:
+        type: array
+        items:
+          type: object
+          additionalProperties: false
+          required: [label, when]
+          properties:
+            label: {$ref: 'common.schema.yml#/$defs/text'}
+            when: {$ref: 'common.schema.yml#/$defs/contexts'}
+      relations:
+        type: object
+        additionalProperties:
+          type: array
+          uniqueItems: true
+          items: {$ref: 'common.schema.yml#/$defs/ref'}
+      metadata: {type: object}
+  rule:
+    type: object
+    additionalProperties: false
+    required: [forms, replace_with, reason]
+    properties:
+      forms:
+        type: array
+        minItems: 1
+        items: {$ref: 'common.schema.yml#/$defs/form'}
+      replace_with:
+        type: array
+        minItems: 1
+        items:
+          type: object
+          additionalProperties: false
+          oneOf:
+            - required: [term]
+            - required: [instruction]
+          properties:
+            term: {$ref: 'common.schema.yml#/$defs/ref'}
+            instruction: {$ref: 'common.schema.yml#/$defs/text'}
+            when: {$ref: 'common.schema.yml#/$defs/contexts'}
+      reason: {$ref: 'common.schema.yml#/$defs/text'}
+      severity: {enum: [error, warning]}
+      status: {$ref: 'common.schema.yml#/$defs/status'}
+      audiences:
+        type: array
+        minItems: 1
+        uniqueItems: true
+        items: {$ref: 'common.schema.yml#/$defs/id'}
+      exceptions:
+        type: array
+        items: {$ref: 'common.schema.yml#/$defs/form'}
+      case_sensitive: {type: boolean}
