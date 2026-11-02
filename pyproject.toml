@@ -1,0 +1,69 @@
+# ==================================================================================================
+# Pyproject Configuration for the onomasia Package
+#
+# Onomasia owns the designation of meanings in texts: glossaries, notations, typographic classes,
+# lexical rules scoped by audience, and one table of macros that it serializes for LaTeX, MathJax
+# and Python figure code.
+# ==================================================================================================
+
+# --- Build System Requirements --------------------------------------------------------------------
+
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+
+# --- Package Metadata -----------------------------------------------------------------------------
+
+[project]
+name = "onomasia"
+version = "0.0.0"
+authors = [{name = "Esther Poniatowski", email = "esther.poniatowski@ens.psl.eu"}]
+license = "GPL-3.0-or-later"
+license-files = ["LICENSE"]
+readme = {file = "README.md", content-type = "text/markdown"}
+description = "Owns the glossaries and notations of texts, and generates their macros for LaTeX, MathJax and figure code."
+keywords = ["glossary", "notation", "terminology", "typography", "latex macros", "mathjax"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+    "Development Status :: 2 - Pre-Alpha"
+]
+urls = {homepage = "https://github.com/esther-poniatowski/onomasia"}
+
+
+# --- Dependencies ---------------------------------------------------------------------------------
+
+requires-python = ">=3.12"
+
+dependencies = [
+    "jsonschema",
+    "pyyaml",
+    "typer",
+]
+
+
+# --- Package Source Code --------------------------------------------------------------------------
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+# The schemas and the defaults shipped with the package, read at run time through importlib.resources.
+[tool.setuptools.package-data]
+onomasia = ["data/*.yml", "data/schemas/*.yml"]
+
+# --- CLI Entry Points -----------------------------------------------------------------------------
+
+[project.scripts]
+onomasia = "onomasia.cli:app"
+
+# --- Tool Configurations --------------------------------------------------------------------------
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"

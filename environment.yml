@@ -1,0 +1,24 @@
+name: onomasia
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.12
+  # Development tools
+  - black                  # code formatting
+  - mypy                   # static type checking
+  - mypy_extensions
+  - pylint                 # code linting
+  - pyright                # static type analysis
+  # Testing
+  - pytest
+  - pytest-mock
+  - pytest-cov
+  - pytest-pylint          # Pylint plugin for Pytest
+  # Runtime
+  - jsonschema             # validation of records against their schemas
+  - pyyaml                 # records and configuration
+  # CLI
+  - typer                  # command line interface
+  - rich                   # terminal output formatting
+variables:
