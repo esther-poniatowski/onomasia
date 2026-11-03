@@ -36,7 +36,7 @@ notes/notation.yml#/entries/lam: warning undeclared-entry: the entry denotes no 
 0 errors, 1 warnings
 ```
 
-The line opens on the resource and the JSON Pointer of the offending value, then gives the severity, the check and the message. The resource is the path of the record, relative to the root. The last line counts the errors and the warnings. The command exits with one of three statuses:
+The line opens on the resource and the JSON Pointer of the offending value, then gives the severity, the check and the message. The resource is the path of the offending file relative to the root: a record, an input document, or the configuration for an issue of an output. The last line counts the errors and the warnings. The command exits with one of three statuses:
 
 - 0 when no error is reported;
 - 1 when an error is reported;

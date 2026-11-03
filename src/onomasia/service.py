@@ -42,9 +42,6 @@ from .repository import FileRecordSource, RecordSource, load_records
 from .typography.serializers import serializer
 from .typography.table import MacroTable, TargetSignature, build_macro_table
 
-CONFIGURATION_RESOURCE = "onomasia.yml"
-"""Resource named by an issue on an output of the configuration."""
-
 
 @dataclass(frozen=True)
 class BuildResult:
@@ -140,7 +137,10 @@ class _Builder:
     def _unresolved(self, index: int, key: str, message: str) -> None:
         """Report an output naming a record that the consumer does not hold."""
         self._sink.report(
-            "unresolved-output", CONFIGURATION_RESOURCE, f"/build/outputs/{index}/{key}", message
+            "unresolved-output",
+            self._configuration.resource,
+            f"/build/outputs/{index}/{key}",
+            message,
         )
 
     def _table(self, index: int, output: Output) -> MacroTable | None:

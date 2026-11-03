@@ -49,6 +49,9 @@ from .records.model import RecordKind
 SCHEMA_VERSION = 1
 """Version of the layout of `onomasia.yml` read by this release."""
 
+CONFIGURATION_FILE = "onomasia.yml"
+"""Name of the configuration file, read at the root of a consumer when no other file is named."""
+
 
 @dataclass(frozen=True)
 class StatusRole:
@@ -190,6 +193,9 @@ class Configuration:
     ----------
     root : Path
         Root of the consumer, against which every glob resolves.
+    resource : str
+        Path of the configuration file relative to the root, at which an issue of the
+        configuration is reported.
     records : RecordLocations
         Locations of the records.
     vocabulary : Vocabulary
@@ -203,6 +209,7 @@ class Configuration:
     """
 
     root: Path
+    resource: str
     records: RecordLocations
     vocabulary: Vocabulary
     typography: Typography
@@ -321,7 +328,7 @@ def _build(root: Path, fields: Fields | None) -> Build:
     return build
 
 
-def _resolve(root: Path, data: Mapping[str, object], origin: str) -> Configuration:
+def _resolve(root: Path, resource: str, data: Mapping[str, object], origin: str) -> Configuration:
     """Resolve a configuration mapping, the packaged vocabulary standing for an absent section."""
     fields = Fields(data, "", origin)
     version = fields.integer("schema_version")
@@ -329,6 +336,7 @@ def _resolve(root: Path, data: Mapping[str, object], origin: str) -> Configurati
         raise fields.error("schema_version", f"version {version}, expected {SCHEMA_VERSION}")
     configuration = Configuration(
         root=root,
+        resource=resource,
         records=_records(fields.section("records")),
         vocabulary=_vocabulary(fields.section("vocabulary") or _packaged_section("vocabulary")),
         typography=_typography(fields.section("typography") or _packaged_section("typography")),
@@ -368,9 +376,14 @@ def load_configuration(root: Path, path: Path) -> Configuration:
         raise ConfigurationError(f"{path}: cannot read the configuration: {error}") from error
     if not isinstance(data, Mapping):
         raise ConfigurationError(f"{path}: the configuration is a mapping")
-    return _resolve(root, data, str(path))
+    return _resolve(root, path.resolve().relative_to(root).as_posix(), data, str(path))
 
 
 def default_configuration(root: Path) -> Configuration:
     """Configuration of a consumer that declares none: no record, packaged vocabularies."""
-    return _resolve(root.resolve(), {"schema_version": SCHEMA_VERSION}, "default configuration")
+    return _resolve(
+        root.resolve(),
+        CONFIGURATION_FILE,
+        {"schema_version": SCHEMA_VERSION},
+        "default configuration",
+    )

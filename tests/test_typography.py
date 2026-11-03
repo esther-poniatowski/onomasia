@@ -280,3 +280,17 @@ def test_output_naming_an_absent_notation_is_reported(tmp_path: Path) -> None:
 
 UNRESOLVED_OUTPUT = "unresolved-output"
 """Check planted by `test_output_naming_an_absent_notation_is_reported`."""
+
+
+def test_unresolved_output_is_reported_at_the_configuration_read(tmp_path: Path) -> None:
+    outputs = [{"product": "latex-package", "notations": ["absent"], "path": "out/x.sty"}]
+    root = _consumer(tmp_path, {}, outputs)
+    (root / "config").mkdir()
+    (root / "onomasia.yml").rename(root / "config" / "onomasia-ci.yml")
+    configuration = load_configuration(root, root / "config" / "onomasia-ci.yml")
+    result = build_outputs(configuration, provenance=FixedProvenance())
+    assert [
+        (issue.resource, issue.pointer)
+        for issue in result.issues
+        if issue.check == UNRESOLVED_OUTPUT
+    ] == [("config/onomasia-ci.yml", "/build/outputs/0/notations")]

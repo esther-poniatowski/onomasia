@@ -20,15 +20,12 @@ from pathlib import Path
 import typer
 
 from . import info, __version__
-from .configuration import load_configuration
+from .configuration import CONFIGURATION_FILE, load_configuration
 from .errors import OnomasiaError
 from .issues import Issue, Severity
 from .service import build_outputs, check_records
 
 app = typer.Typer(add_completion=False, no_args_is_help=True)
-
-CONFIGURATION_FILE = "onomasia.yml"
-"""Name of the configuration file read at the root when none is passed."""
 
 
 @app.command("info")
