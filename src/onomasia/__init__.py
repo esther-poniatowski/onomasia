@@ -2,8 +2,9 @@
 Glossaries and notations of texts: their records, their composition, their checks, and the macros
 that print their symbols.
 
-The public interface loads the configuration of a consumer, checks its records, and exposes the
-typed records and the ports through which a consumer supplies them.
+The public interface loads the configuration of a consumer, checks its records, builds its
+outputs, and exposes the typed records and the ports through which a consumer supplies its records
+and their provenance.
 
 Variables
 ---------
@@ -40,9 +41,10 @@ import platform
 from .configuration import Configuration, default_configuration, load_configuration
 from .errors import ConfigurationError, OnomasiaError
 from .issues import Issue, Severity
+from .provenance import GitProvenance, ProvenanceProvider, Source
 from .records.model import Entry, LexicalRule, Record, RecordKind, Term, TypographicClass
 from .repository import FileRecordSource, RawDocument, RecordSource
-from .service import check_records
+from .service import BuildResult, build_outputs, check_records
 
 try:
     if __package__ is None:  # erroneous script execution
@@ -52,20 +54,25 @@ except PackageNotFoundError:
     __version__ = "0.0.0+unknown"
 
 __all__ = [
+    "BuildResult",
     "Configuration",
     "ConfigurationError",
     "Entry",
     "FileRecordSource",
+    "GitProvenance",
     "Issue",
     "LexicalRule",
     "OnomasiaError",
+    "ProvenanceProvider",
     "RawDocument",
     "Record",
     "RecordKind",
     "RecordSource",
     "Severity",
+    "Source",
     "Term",
     "TypographicClass",
+    "build_outputs",
     "check_records",
     "default_configuration",
     "info",
