@@ -244,6 +244,8 @@ class Entry:  # pylint: disable=too-many-instance-attributes
         Entry replacing this one, for a status requiring a replacement.
     alternatives : tuple[Alternative, ...]
         Other bodies of the symbol, each with the contexts that it suits.
+    overloads : tuple[str, ...]
+        Entries of the composed notation printing the same body on purpose.
     """
 
     denotes: str | None = None
@@ -257,6 +259,7 @@ class Entry:  # pylint: disable=too-many-instance-attributes
     status: str | None = None
     replaced_by: str | None = None
     alternatives: tuple[Alternative, ...] = ()
+    overloads: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)

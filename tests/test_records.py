@@ -309,6 +309,11 @@ PLANTED = {
         "projects/p/notation.yml",
         "/entries/w-ff",
     ),
+    "unneeded-overload": (
+        {"projects/p/notation.yml": _with(NOTATION, ["entries", "lam", "overloads"], ["w-ff"])},
+        "projects/p/notation.yml",
+        "/entries/lam/overloads/0",
+    ),
     "missing-gloss": (
         {"projects/p/notation.yml": _with(NOTATION, ["entries", "lam", "gloss"], None)},
         "projects/p/notation.yml",
@@ -406,6 +411,43 @@ def test_template_of_an_overlay_causing_a_collision_is_reported_at_the_overlay(
         issue for issue in _issues(_consumer(tmp_path, records)) if issue[0] != "undeclared-entry"
     ]
     assert collisions == [("body-collision", "overlay.yml", "/overlays")]
+
+
+def _overloading(**entries: dict) -> dict:
+    """Copy the notation, its entry lam printing the body of w-ff, and add entries."""
+    notation = _with(NOTATION, ["entries", "lam", "body"], "\\boldsymbol{W}")
+    notation["entries"].update(entries)
+    return notation
+
+
+def _collisions(tmp_path: Path, notation: dict) -> list[tuple[str, str, str]]:
+    """Return the issues of a consumer holding a notation, its undeclared entries left aside."""
+    records = dict(CLEAN, **{"projects/p/notation.yml": notation})
+    return [
+        issue for issue in _issues(_consumer(tmp_path, records)) if issue[0] != "undeclared-entry"
+    ]
+
+
+def test_declared_overload_admits_a_shared_body(tmp_path: Path) -> None:
+    notation = _overloading()
+    notation["entries"]["lam"]["overloads"] = ["w-ff"]
+    assert _collisions(tmp_path, notation) == []
+
+
+def test_overload_with_one_entry_leaves_a_third_entry_colliding(tmp_path: Path) -> None:
+    third = {"gloss": "g", "body": "\\boldsymbol{W}", "overloads": ["w-ff"]}
+    notation = _overloading(v=third)
+    notation["entries"]["lam"]["overloads"] = ["w-ff"]
+    assert _collisions(tmp_path, notation) == [
+        ("body-collision", "projects/p/notation.yml", "/entries/v")
+    ]
+
+
+def test_overload_naming_no_entry_is_unresolved(tmp_path: Path) -> None:
+    notation = _with(NOTATION, ["entries", "lam", "overloads"], ["absent"])
+    assert _collisions(tmp_path, notation) == [
+        ("unresolved-reference", "projects/p/notation.yml", "/entries/lam/overloads/0")
+    ]
 
 
 def test_consumer_turns_a_check_off(tmp_path: Path) -> None:

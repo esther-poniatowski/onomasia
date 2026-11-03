@@ -120,6 +120,7 @@ def _entry(data: Data) -> Entry:
             Alternative(str(item["body"]), _contexts(item.get("when")))
             for item in cast(Sequence[Data], _list(data, "alternatives"))
         ),
+        overloads=tuple(str(item) for item in _list(data, "overloads")),
     )
 
 

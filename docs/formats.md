@@ -97,6 +97,8 @@ Four keys of an entry fix its macro:
 
 The [parameter rule](contracts.md#^parameters) maps these keys to the parameters of a macro. An entry also admits a `status` with its `replaced_by`, and `alternatives`, each giving another body under `body` with its contexts under `when`. ^macros
 
+The check `body-collision` reports two entries of one composed notation printing the same body. A pair is admitted when one of its entries names the other under `overloads`. The field `overloads` lists the identifiers of the entries that print the body of the entry on purpose, such as one letter used for two quantities. A declaration admits one pair only: an entry overloading a second entry still collides with a third entry printing the same body. The check `unneeded-overload` reports an overload naming the entry itself or an entry printing another body, and the check `unresolved-reference` reports an overload naming no entry. An overlay declares no overload, so a collision created by an overlay stays an error. ^overloads
+
 ## Overlays
 
 An overlay, `onomasia:overlay@1`, names under `overlays` the notation to change. An overlay imports no record. Instead, Onomasia applies the overlay to the composed notation, by identifier:

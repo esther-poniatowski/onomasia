@@ -29,6 +29,7 @@ from .records.model import (
     Contexts,
     Entry,
     LexicalRule,
+    RecordKind,
     Replacement,
     Term,
     TypographicClass,
@@ -355,11 +356,23 @@ def check_form_collisions(context: CheckContext) -> None:
             )
 
 
+def _overloaded(first: tuple[str, str, Visible], second: tuple[str, str, Visible]) -> bool:
+    """Whether either of two entries declares the other under `overloads`."""
+    first_entry, second_entry = first[2].entry, second[2].entry
+    assert isinstance(first_entry, Entry) and isinstance(second_entry, Entry)
+    return first[1] in second_entry.overloads or second[1] in first_entry.overloads
+
+
 def _body_collisions(placeholder: str) -> Callable[[Composition], list[Collision]]:
-    """Return the lister of the pairs of entries printing the same body under a placeholder."""
+    """
+    Return the lister of the pairs of entries printing the same body under a placeholder.
+
+    Each entry is paired with the first earlier entry printing its body without a declared
+    overload, so an entry overloading one entry still collides with a third one.
+    """
 
     def collisions(composition: Composition) -> list[Collision]:
-        printed: dict[str, tuple[str, str, Visible]] = {}
+        printed: dict[str, list[tuple[str, str, Visible]]] = {}
         found: list[Collision] = []
         for identifier, visible in composition.sections.get("entries", {}).items():
             if not isinstance(visible.entry, Entry):
@@ -367,12 +380,36 @@ def _body_collisions(placeholder: str) -> Callable[[Composition], list[Collision
             body = printed_body(visible.entry, composition, placeholder)
             if body is None:
                 continue
-            first = printed.setdefault(body, ("entries", identifier, visible))
-            if first[1] != identifier:
-                found.append(Collision(body, first, ("entries", identifier, visible)))
+            member = ("entries", identifier, visible)
+            earlier = printed.setdefault(body, [])
+            clash = next((other for other in earlier if not _overloaded(other, member)), None)
+            if clash is not None:
+                found.append(Collision(body, clash, member))
+            earlier.append(member)
         return found
 
     return collisions
+
+
+def _check_overloads(
+    context: CheckContext, composition: Composition, identifier: str, visible: Visible
+) -> None:
+    """Check that each overload of an entry names another entry printing the same body."""
+    entry = visible.entry
+    assert isinstance(entry, Entry)
+    placeholder = context.typography.base_placeholder
+    body = printed_body(entry, composition, placeholder)
+    for index, other in enumerate(entry.overloads):
+        pointer = f"/entries/{identifier}/overloads/{index}"
+        target = composition.sections.get("entries", {}).get(other)
+        if target is None:
+            _report(context, "unresolved-reference", visible, pointer, f"no entry {other}")
+        elif other == identifier:
+            _report(context, "unneeded-overload", visible, pointer, "the entry names itself")
+        elif not isinstance(target.entry, Entry) or (
+            printed_body(target.entry, composition, placeholder) != body
+        ):
+            _report(context, "unneeded-overload", visible, pointer, f"{other} prints another body")
 
 
 def check_entries(context: CheckContext) -> None:
@@ -393,6 +430,8 @@ def check_entries(context: CheckContext) -> None:
                     pointer,
                     "the entry gives both a body and a base",
                 )
+            if composition.record.kind is RecordKind.NOTATION:
+                _check_overloads(context, composition, identifier, visible)
             if printed_body(entry, composition, placeholder) is None:
                 _report(
                     context,

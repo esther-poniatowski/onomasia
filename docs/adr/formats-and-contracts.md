@@ -47,7 +47,7 @@ The [record formats](../formats.md), the [configuration](../configuration.md) an
 
 **A catalog of checks.** Every check is listed with its default severity in the packaged defaults. A consumer changes a severity or turns a check off, and cannot name a check absent from the catalog. ^catalog
 
-**A check as a build writing nothing.** The command `onomasia check` reads the inputs of the build, computes every output and runs every check of the catalog, then writes nothing. A consumer whose check passes therefore has a build that passes. ^check-as-build
+**A check as a build without its writes.** The command `onomasia check` runs the build in full, every check of the catalog included, and writes no output. Therefore, a consumer whose check passes has a build that passes. ^check-as-build
 
 **Collisions reported where their entries meet.** A collision is reported at the record that first brings its two entries together, and never again at a record importing it. ^collisions
 
@@ -59,7 +59,7 @@ The [record formats](../formats.md), the [configuration](../configuration.md) an
 
 **A build writing all its outputs or none.** A build reporting an error writes no output, and every other build replaces each output in one step. A consumer lowering the severity of a check accepts that the build skips an output that cannot be built, and writes the others. ^atomic-build
 
-**Printed forms unique within a composed notation.** The check `body-collision` reports two entries of one composed notation printing the same body. The designation decision checks the printed forms used in one text and admits declared overloads. That check belongs to the checks of texts, and no field of a notation declares an overload yet. ^unique-bodies
+**Printed forms unique within a composed notation, except declared overloads.** The check `body-collision` reports two entries of one composed notation printing the same body, unless one entry names the other under [`overloads`](../formats.md#^overloads). The check `unneeded-overload` reports a declaration that no shared body justifies. A text binds one composed notation, so this check covers every pair of printed forms usable in one text. ^unique-bodies
 
 **Checks of texts after Anagraphe.** Onomasia checks records and builds outputs now. Onomasia matches terms in prose and symbols in mathematics only once Anagraphe resolves binding keys. ^texts-after-anagraphe
 
@@ -150,6 +150,14 @@ The [record formats](../formats.md), the [configuration](../configuration.md) an
 | A name declared by every entry | Every name chosen by an author | Every entry must be named by hand, although a view generated from records reads its names from the lookup |
 | **A declared name, or a name derived under a reserved prefix** | Short names declared by authors, and, for the other entries, names unable to overwrite a command of TeX | Taken |
 
+**Admission of a shared printed form.**
+
+| Option | Benefit | Reason it is not taken |
+| --- | --- | --- |
+| A warning instead of an error, until the checks of texts exist | No declaration to write | A guarantee that holds today is lost |
+| A check of the printed forms used in each text only | A collision counts only where a text meets it | The check waits for the binding keys of Anagraphe, and detects no further pair, since a text binds one composed notation |
+| **An error for each pair not declared under `overloads`** | Every shared body is either intended or reported | Taken. A stale declaration is reported by `unneeded-overload` |
+
 **Form of the entry argument.**
 
 | Option | Benefit | Reason it is not taken |
@@ -169,5 +177,5 @@ The [record formats](../formats.md), the [configuration](../configuration.md) an
 
 - The checks of texts, reading the regions of Merismos and the binding keys of Anagraphe.
 - The key of the configuration naming the scope table.
-- A field declaring an overload of printed forms, and the check of the printed forms used in one text.
+- The check of a text using a printed form absent from the notation bound to it.
 - The migration of the records of Geonexus and Mixture to the formats of Onomasia.

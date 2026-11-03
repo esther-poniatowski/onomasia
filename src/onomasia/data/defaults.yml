@@ -68,7 +68,10 @@ checks:
     gloss: a notation entry gives both a body and a base
   body-collision:
     severity: error
-    gloss: two entries of one composed notation print the same body
+    gloss: two entries of one composed notation print the same body, and neither declares the other under overloads
+  unneeded-overload:
+    severity: warning
+    gloss: an entry declares an overload with itself, or with an entry printing another body
   undeclared-entry:
     severity: warning
     gloss: a notation entry denotes no unit, and its gloss stands for the meaning
