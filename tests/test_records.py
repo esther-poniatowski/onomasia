@@ -413,6 +413,15 @@ def test_consumer_turns_a_check_off(tmp_path: Path) -> None:
     assert _issues(_consumer(tmp_path, CLEAN, configuration)) == []
 
 
+def test_bare_off_turns_a_check_off(tmp_path: Path) -> None:
+    root = _consumer(tmp_path, CLEAN)
+    text = (root / "onomasia.yml").read_text(encoding="utf-8")
+    (root / "onomasia.yml").write_text(
+        text + "checks:\n  undeclared-entry: off\n", encoding="utf-8"
+    )
+    assert _issues(root) == []
+
+
 def test_overlay_changes_only_bodies_and_classes(tmp_path: Path) -> None:
     overlay = _with(OVERLAY, ["entries", "w-ff"], {"name": "V"})
     issues = _issues(_consumer(tmp_path, dict(CLEAN, **{"projects/p/overlay-poster.yml": overlay})))

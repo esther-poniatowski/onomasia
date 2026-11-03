@@ -255,7 +255,9 @@ def _severities(fields: Fields | None) -> dict[str, Severity]:
         return severities
     for check in list(severities):
         if fields.present(check):
-            value = fields.string(check)
+            value = fields.value(check)
+            if value is False:  # YAML 1.1 reads a bare `off` as false.
+                value = Severity.OFF.value
             try:
                 severities[check] = Severity(value)
             except ValueError as error:

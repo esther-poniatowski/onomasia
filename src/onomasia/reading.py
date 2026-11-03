@@ -53,6 +53,10 @@ class Fields:
         """Whether the mapping holds the key, null included."""
         return key in self._data
 
+    def value(self, key: str) -> object:
+        """Read the value of a key, of any type, or None when it is absent."""
+        return self._get(key)
+
     def integer(self, key: str) -> int:
         """Read a required integer."""
         value = self._get(key)
