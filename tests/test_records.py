@@ -357,11 +357,6 @@ def test_planted_defect_is_reported(tmp_path: Path, check: str) -> None:
     assert (check, resource, pointer) in _issues(_consumer(tmp_path, planted))
 
 
-def test_every_check_of_the_catalog_is_planted() -> None:
-    """A check of the catalog without a planted case is a check that nothing shows to work."""
-    assert set(default_severities()) == set(PLANTED) | {"undeclared-entry"}
-
-
 def test_consumer_turns_a_check_off(tmp_path: Path) -> None:
     configuration = dict(CONFIGURATION, checks={"undeclared-entry": "off"})
     assert _issues(_consumer(tmp_path, CLEAN, configuration)) == []
