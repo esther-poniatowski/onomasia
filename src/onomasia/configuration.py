@@ -2,7 +2,7 @@
 Configuration of a consumer, `onomasia.yml`: where its records live, its vocabularies, and the
 severity of each check.
 
-The file declares its `schema_version`, then three sections, each optional:
+The file declares its `schema_version`, then five sections, each optional:
 
 - `records`, the globs of the records of each format, relative to the root, and the paths
   excluded from every glob;
