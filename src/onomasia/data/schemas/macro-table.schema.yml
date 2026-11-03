@@ -1,0 +1,30 @@
+# Contract onomasia:macro-table@1: one macro per entry of a composition of notations. Onomasia
+# generates it; Gnomon reads the target and the class of each entry from it.
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: macro-table.schema.yml
+title: Macro table
+type: object
+additionalProperties: false
+required: [contract, sources, notations, overlays, entries]
+properties:
+  contract: {const: 'onomasia:macro-table@1'}
+  sources: {$ref: 'common.schema.yml#/$defs/sources'}
+  notations: {type: array, items: {$ref: 'common.schema.yml#/$defs/id'}}
+  overlays: {type: array, items: {$ref: 'common.schema.yml#/$defs/id'}}
+  entries:
+    type: array
+    items:
+      type: object
+      additionalProperties: false
+      required: [id, notation, target, name, body, arity, entry, binder, separator, class]
+      properties:
+        id: {$ref: 'common.schema.yml#/$defs/id'}
+        notation: {$ref: 'common.schema.yml#/$defs/id'}
+        target: {type: [string, 'null']}
+        name: {type: string, pattern: '^[A-Za-z]+$'}
+        body: {type: string, minLength: 1}
+        arity: {type: integer, minimum: 0}
+        entry: {type: boolean}
+        binder: {type: [integer, 'null'], minimum: 1}
+        separator: {type: [string, 'null']}
+        class: {type: [string, 'null']}

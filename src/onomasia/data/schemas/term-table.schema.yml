@@ -1,0 +1,30 @@
+# Contract onomasia:term-table@1: the terms of a composed glossary, with their forms, statuses
+# and glosses. Onomasia generates it; Hermeneia reads it.
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: term-table.schema.yml
+title: Term table
+type: object
+additionalProperties: false
+required: [contract, sources, glossary, terms]
+properties:
+  contract: {const: 'onomasia:term-table@1'}
+  sources: {$ref: 'common.schema.yml#/$defs/sources'}
+  glossary: {$ref: 'common.schema.yml#/$defs/id'}
+  terms:
+    type: array
+    items:
+      type: object
+      additionalProperties: false
+      required: [id, forms, status, gloss]
+      properties:
+        id: {$ref: 'common.schema.yml#/$defs/id'}
+        forms: {type: array, items: {$ref: 'common.schema.yml#/$defs/form'}}
+        status: {type: string, minLength: 1}
+        gloss:
+          type: object
+          additionalProperties: false
+          required: [text, resource, pointer]
+          properties:
+            text: {type: string, minLength: 1}
+            resource: {type: string, minLength: 1}
+            pointer: {type: string}

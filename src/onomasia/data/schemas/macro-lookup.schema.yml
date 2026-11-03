@@ -1,0 +1,15 @@
+# Contract onomasia:macro-lookup@1: the macro name to write for each unit, built from base
+# notations, whose names every overlay keeps. Onomasia generates it; views read it.
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: macro-lookup.schema.yml
+title: Macro lookup
+type: object
+additionalProperties: false
+required: [contract, sources, notations, targets]
+properties:
+  contract: {const: 'onomasia:macro-lookup@1'}
+  sources: {$ref: 'common.schema.yml#/$defs/sources'}
+  notations: {type: array, items: {$ref: 'common.schema.yml#/$defs/id'}}
+  targets:
+    type: object
+    additionalProperties: {type: string, pattern: '^[A-Za-z]+$'}

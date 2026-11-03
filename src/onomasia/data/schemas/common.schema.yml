@@ -67,3 +67,14 @@ $defs:
     properties:
       template: {$ref: '#/$defs/text'}
       gloss: {$ref: '#/$defs/text'}
+  sources:
+    type: array
+    description: Repositories of the records behind a generated document, each with its commit.
+    items:
+      type: object
+      additionalProperties: false
+      required: [repository, commit, dirty]
+      properties:
+        repository: {type: string, minLength: 1}
+        commit: {type: string, pattern: '^[0-9a-f]{40}$'}
+        dirty: {type: boolean}

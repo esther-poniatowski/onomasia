@@ -1,0 +1,21 @@
+# Contract onomasia:scope-table@1: the ancestors and the descendants of each audience. Ekthesis
+# generates it; Onomasia reads from it the audiences whose lexical rules bind a text.
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: scope-table.schema.yml
+title: Scope table
+type: object
+additionalProperties: false
+required: [contract, sources, audiences]
+properties:
+  contract: {const: 'onomasia:scope-table@1'}
+  sources: {$ref: 'common.schema.yml#/$defs/sources'}
+  audiences:
+    type: object
+    propertyNames: {$ref: 'common.schema.yml#/$defs/id'}
+    additionalProperties:
+      type: object
+      additionalProperties: false
+      required: [ancestors, descendants]
+      properties:
+        ancestors: {type: array, items: {$ref: 'common.schema.yml#/$defs/id'}}
+        descendants: {type: array, items: {$ref: 'common.schema.yml#/$defs/id'}}

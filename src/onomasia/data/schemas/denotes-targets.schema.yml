@@ -1,0 +1,22 @@
+# Contract onomasia:denotes-targets@1: the units that a key denotes may name, with their
+# arguments. Gnomon generates it; Onomasia takes from it the arguments of each macro.
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: denotes-targets.schema.yml
+title: Denotes targets
+type: object
+additionalProperties: false
+required: [contract, sources, targets]
+properties:
+  contract: {const: 'onomasia:denotes-targets@1'}
+  sources: {$ref: 'common.schema.yml#/$defs/sources'}
+  targets:
+    type: array
+    items:
+      type: object
+      additionalProperties: false
+      required: [target, arity]
+      properties:
+        target: {type: string, minLength: 1, description: The unit, as a logical target of Anagraphe.}
+        arity: {type: integer, minimum: 0}
+        binder: {type: integer, minimum: 1}
+        variadic: {type: boolean}

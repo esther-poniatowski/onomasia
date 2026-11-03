@@ -8,7 +8,9 @@ The file declares its `schema_version`, then three sections, each optional:
   excluded from every glob;
 - `vocabulary`, the statuses, the context dimensions and the relations of the consumer, each
   replacing the packaged default as a whole;
-- `typography`, the placeholder of the base in the templates of typographic classes;
+- `typography`, the placeholder of the base in the templates of typographic classes, and the
+  derivation of macro names;
+- `build`, the input documents read by the build, and the outputs that it writes;
 - `checks`, the severity of each check that the consumer changes: `error`, `warning` or `off`.
 
 Classes
@@ -33,6 +35,7 @@ default_configuration(root) -> Configuration
 """
 
 from dataclasses import dataclass
+from enum import Enum
 from pathlib import Path
 from typing import Mapping
 
@@ -110,9 +113,72 @@ class Typography:
     ----------
     base_placeholder : str
         Placeholder standing for the base of an entry in the template of its class.
+    macro_prefix : str
+        Prefix of a derived macro name, which no declared name may start with.
+    digit_names : tuple[str, ...]
+        Words replacing the digits 0 to 9 in a derived name.
+    maximum_parameters : int
+        Parameters of one macro, as TeX admits them.
     """
 
     base_placeholder: str
+    macro_prefix: str
+    digit_names: tuple[str, ...]
+    maximum_parameters: int
+
+
+class Product(Enum):
+    """Product written by the build: a contract document or a serialization of a macro table."""
+
+    MACRO_TABLE = "macro-table"
+    MACRO_LOOKUP = "macro-lookup"
+    TERM_TABLE = "term-table"
+    LATEX_PACKAGE = "latex-package"
+    MATHJAX_PREAMBLE = "mathjax-preamble"
+    PYTHON_EXPANDER = "python-expander"
+
+
+@dataclass(frozen=True)
+class Output:
+    """
+    One output of the build.
+
+    Attributes
+    ----------
+    product : Product
+        Product written.
+    path : Path
+        File written, resolved against the root.
+    notations : tuple[str, ...]
+        Notations composed into a macro product, in order.
+    overlays : tuple[str, ...]
+        Overlays applied to those notations, in order.
+    glossary : str | None
+        Glossary of a term table.
+    """
+
+    product: Product
+    path: Path
+    notations: tuple[str, ...] = ()
+    overlays: tuple[str, ...] = ()
+    glossary: str | None = None
+
+
+@dataclass(frozen=True)
+class Build:
+    """
+    Inputs and outputs of the build.
+
+    Attributes
+    ----------
+    denotes_targets : tuple[Path, ...]
+        Documents of the denotes targets, resolved against the root.
+    outputs : tuple[Output, ...]
+        Outputs to write.
+    """
+
+    denotes_targets: tuple[Path, ...]
+    outputs: tuple[Output, ...]
 
 
 @dataclass(frozen=True)
@@ -130,6 +196,8 @@ class Configuration:
         Value sets of the consumer.
     typography : Typography
         Conventions of the printed forms.
+    build : Build
+        Inputs and outputs of the build.
     severities : Mapping[str, Severity]
         Severity of each check of the catalog.
     """
@@ -138,6 +206,7 @@ class Configuration:
     records: RecordLocations
     vocabulary: Vocabulary
     typography: Typography
+    build: Build
     severities: Mapping[str, Severity]
 
 
@@ -204,10 +273,50 @@ def _packaged_section(key: str) -> Fields:
 
 
 def _typography(fields: Fields) -> Typography:
-    """Read the typography section."""
-    typography = Typography(base_placeholder=fields.string("base_placeholder"))
+    """Read the typography section, checking that it names one word per digit."""
+    digits = fields.strings("digit_names")
+    if len(digits) != 10 or not all(name.isalpha() for name in digits):
+        raise fields.error("digit_names", "expected ten words of letters, for the digits 0 to 9")
+    typography = Typography(
+        base_placeholder=fields.string("base_placeholder"),
+        macro_prefix=fields.string("macro_prefix"),
+        digit_names=digits,
+        maximum_parameters=fields.integer("maximum_parameters"),
+    )
     fields.finish()
     return typography
+
+
+def _output(root: Path, data: object, index: int) -> Output:
+    """Read one output of the build, the keys it requires depending on its product."""
+    if not isinstance(data, Mapping):
+        raise ConfigurationError(f"build.outputs.{index}: expected a mapping")
+    fields = Fields(data, f"build.outputs.{index}", "configuration")
+    try:
+        product = Product(fields.string("product"))
+    except ValueError as error:
+        choices = ", ".join(member.value for member in Product)
+        raise fields.error("product", f"expected one of {choices}") from error
+    path = root / fields.string("path")
+    if product is Product.TERM_TABLE:
+        output = Output(product, path, glossary=fields.string("glossary"))
+    else:
+        output = Output(
+            product, path, fields.strings("notations"), fields.strings("overlays", default=())
+        )
+    fields.finish()
+    return output
+
+
+def _build(root: Path, fields: Fields | None) -> Build:
+    """Read the build section, which declares no output when it is absent."""
+    if fields is None:
+        return Build((), ())
+    targets = tuple(root / path for path in fields.strings("denotes_targets", default=()))
+    raw = fields.items("outputs")
+    build = Build(targets, tuple(_output(root, item, index) for index, item in enumerate(raw)))
+    fields.finish()
+    return build
 
 
 def _resolve(root: Path, data: Mapping[str, object], origin: str) -> Configuration:
@@ -221,6 +330,7 @@ def _resolve(root: Path, data: Mapping[str, object], origin: str) -> Configurati
         records=_records(fields.section("records")),
         vocabulary=_vocabulary(fields.section("vocabulary") or _packaged_section("vocabulary")),
         typography=_typography(fields.section("typography") or _packaged_section("typography")),
+        build=_build(root, fields.section("build")),
         severities=_severities(fields.section("checks")),
     )
     fields.finish()

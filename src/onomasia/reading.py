@@ -85,6 +85,15 @@ class Fields:
             raise self.error(key, "expected a list of non-empty strings")
         return tuple(str(item) for item in value)
 
+    def items(self, key: str) -> tuple[object, ...]:
+        """Read a list of any items, empty when the key is absent."""
+        value = self._get(key)
+        if value is None:
+            return ()
+        if not isinstance(value, Sequence) or isinstance(value, str):
+            raise self.error(key, "expected a list")
+        return tuple(value)
+
     def mapping(self, key: str) -> Mapping[str, object] | None:
         """Read a mapping, or None when the key is absent."""
         value = self._get(key)

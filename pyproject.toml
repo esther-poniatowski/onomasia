@@ -53,7 +53,7 @@ where = ["src"]
 
 # The schemas and the defaults shipped with the package, read at run time through importlib.resources.
 [tool.setuptools.package-data]
-onomasia = ["data/*.yml", "data/schemas/*.yml"]
+onomasia = ["data/*.yml", "data/*.template", "data/schemas/*.yml"]
 
 # --- CLI Entry Points -----------------------------------------------------------------------------
 

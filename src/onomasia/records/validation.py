@@ -57,6 +57,8 @@ class SchemaValidator:
         registry: Registry = Registry().with_resources(
             (identifier, Resource.from_contents(schema)) for identifier, schema in schemas.items()
         )
+        self._registry = registry
+        self._schemas = schemas
         self._validators = {
             kind: Draft202012Validator(schemas[name], registry=registry)
             for kind, name in SCHEMA_FILES.items()
@@ -67,4 +69,19 @@ class SchemaValidator:
         for error in sorted(
             self._validators[kind].iter_errors(data), key=lambda item: list(item.absolute_path)
         ):
+            yield _pointer(error), error.message
+
+    def contract_errors(self, schema: str, data: object) -> Iterator[tuple[str, str]]:
+        """
+        Yield the pointer and the message of each violation of the schema of a contract.
+
+        Raises
+        ------
+        OnomasiaError
+            If no packaged schema carries the identifier, which is a defect of Onomasia.
+        """
+        if schema not in self._schemas:
+            raise OnomasiaError(f"no packaged schema {schema}")
+        validator = Draft202012Validator(self._schemas[schema], registry=self._registry)
+        for error in sorted(validator.iter_errors(data), key=lambda item: list(item.absolute_path)):
             yield _pointer(error), error.message

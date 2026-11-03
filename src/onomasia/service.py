@@ -1,25 +1,102 @@
 """
-Check of the records of one consumer: loading, composition, and the record checks.
+Services of Onomasia on one consumer: the check of its records, and the build of its outputs.
+
+Both services load, compose and check the records alike. The build then computes every declared
+output in memory, and writes them only when no error was reported, each file replaced in one step,
+so that a failed build leaves the former outputs whole.
+
+Classes
+-------
+BuildResult
+    Issues of a build, and the files that it wrote.
 
 Functions
 ---------
 check_records(configuration, source) -> list[Issue]
     Load, compose and check the records of a consumer.
+build_outputs(configuration, source, provenance) -> BuildResult
+    Check the records of a consumer, then write its declared outputs.
 """
+
+from dataclasses import dataclass
+import os
+from pathlib import Path
+import tempfile
+
+import yaml
 
 from .checks import CheckContext, run_record_checks
 from .composition import Composer, Composition
-from .configuration import Configuration
+from .configuration import Configuration, Output, Product
+from .contracts import (
+    macro_lookup_document,
+    macro_table_document,
+    read_signatures,
+    term_table_document,
+)
 from .issues import Issue, IssueSink
+from .provenance import GitProvenance, ProvenanceProvider, Source
 from .records.model import RecordKind
 from .records.validation import SchemaValidator
 from .repository import FileRecordSource, RecordSource, load_records
+from .typography.serializers import serializer
+from .typography.table import MacroTable, TargetSignature, build_macro_table
+
+CONFIGURATION_RESOURCE = "onomasia.yml"
+"""Resource named by an issue on an output of the configuration."""
+
+
+@dataclass(frozen=True)
+class BuildResult:
+    """
+    Issues of a build, and the files that it wrote.
+
+    Attributes
+    ----------
+    issues : list[Issue]
+        Issues found, sorted by resource, then pointer, then check.
+    written : tuple[Path, ...]
+        Files written, empty when an error was reported.
+    """
+
+    issues: list[Issue]
+    written: tuple[Path, ...]
 
 
 def _compositions(composer: Composer, kind: RecordKind) -> list[Composition]:
     """Compose every record of a format, leaving out those on an import cycle."""
     compositions = (composer.compose(kind, record.identifier) for record in composer.records(kind))
     return [composition for composition in compositions if composition is not None]
+
+
+def _checked(
+    configuration: Configuration,
+    source: RecordSource | None,
+    sink: IssueSink,
+    validator: SchemaValidator,
+) -> Composer:
+    """Load, compose and check the records of a consumer, returning the composer."""
+    source = source or FileRecordSource(configuration.root, configuration.records)
+    composer = Composer(load_records(source, validator, sink), sink)
+    notations = _compositions(composer, RecordKind.NOTATION)
+    for overlay in composer.records(RecordKind.OVERLAY):
+        applied = composer.apply_overlay(overlay)
+        if applied is not None:
+            notations.append(applied)
+    context = CheckContext(
+        glossaries=tuple(_compositions(composer, RecordKind.GLOSSARY)),
+        notations=tuple(notations),
+        vocabulary=configuration.vocabulary,
+        typography=configuration.typography,
+        sink=sink,
+    )
+    run_record_checks(context)
+    return composer
+
+
+def _sorted(sink: IssueSink) -> list[Issue]:
+    """Issues of a sink, sorted by resource, then pointer, then check."""
+    return sorted(sink.issues, key=lambda issue: (issue.resource, issue.pointer, issue.check))
 
 
 def check_records(configuration: Configuration, source: RecordSource | None = None) -> list[Issue]:
@@ -39,19 +116,137 @@ def check_records(configuration: Configuration, source: RecordSource | None = No
         Issues found, sorted by resource, then pointer, then check.
     """
     sink = IssueSink(configuration.severities)
-    source = source or FileRecordSource(configuration.root, configuration.records)
-    composer = Composer(load_records(source, SchemaValidator(), sink), sink)
-    notations = _compositions(composer, RecordKind.NOTATION)
-    for overlay in composer.records(RecordKind.OVERLAY):
-        applied = composer.apply_overlay(overlay)
-        if applied is not None:
-            notations.append(applied)
-    context = CheckContext(
-        glossaries=tuple(_compositions(composer, RecordKind.GLOSSARY)),
-        notations=tuple(notations),
-        vocabulary=configuration.vocabulary,
-        typography=configuration.typography,
-        sink=sink,
+    _checked(configuration, source, sink, SchemaValidator())
+    return _sorted(sink)
+
+
+class _Builder:
+    """Computation of the outputs of one build, from its composer and its inputs."""
+
+    def __init__(
+        self,
+        configuration: Configuration,
+        composer: Composer,
+        signatures: dict[str, TargetSignature],
+        sources: tuple[Source, ...],
+        sink: IssueSink,
+    ) -> None:
+        self._configuration = configuration
+        self._composer = composer
+        self._signatures = signatures
+        self._sources = sources
+        self._sink = sink
+
+    def _unresolved(self, index: int, key: str, message: str) -> None:
+        """Report an output naming a record that the consumer does not hold."""
+        self._sink.report(
+            "unresolved-output", CONFIGURATION_RESOURCE, f"/build/outputs/{index}/{key}", message
+        )
+
+    def _table(self, index: int, output: Output) -> MacroTable | None:
+        """Build the macro table of an output: its notations composed, its overlays applied."""
+        compositions: list[Composition] = []
+        for notation in output.notations:
+            composition = self._composer.compose(RecordKind.NOTATION, notation)
+            if composition is None:
+                self._unresolved(index, "notations", f"no notation {notation}")
+                return None
+            compositions.append(composition)
+        overlays = {
+            record.identifier: record for record in self._composer.records(RecordKind.OVERLAY)
+        }
+        for name in output.overlays:
+            overlay = overlays.get(name)
+            if overlay is None or overlay.overlays not in output.notations:
+                self._unresolved(
+                    index, "overlays", f"no overlay {name} of the notations of the output"
+                )
+                return None
+            position = output.notations.index(overlay.overlays or "")
+            applied = self._composer.apply_overlay(overlay, compositions[position])
+            if applied is not None:
+                compositions[position] = applied
+        return build_macro_table(
+            compositions,
+            output.overlays,
+            self._signatures,
+            self._configuration.typography,
+            self._sink,
+        )
+
+    def content(self, index: int, output: Output) -> str | None:
+        """Compute the text of one output, or None when it cannot be built."""
+        if output.product is Product.TERM_TABLE:
+            composition = self._composer.compose(RecordKind.GLOSSARY, output.glossary or "")
+            if composition is None:
+                self._unresolved(index, "glossary", f"no glossary {output.glossary}")
+                return None
+            document = term_table_document(
+                composition, self._sources, self._configuration.vocabulary.default_status
+            )
+            return yaml.safe_dump(document, allow_unicode=True, sort_keys=False)
+        table = self._table(index, output)
+        if table is None:
+            return None
+        if output.product is Product.MACRO_TABLE:
+            return yaml.safe_dump(
+                macro_table_document(table, self._sources), allow_unicode=True, sort_keys=False
+            )
+        if output.product is Product.MACRO_LOOKUP:
+            return yaml.safe_dump(
+                macro_lookup_document(table, self._sources), allow_unicode=True, sort_keys=False
+            )
+        return serializer(output.product)(table, self._sources, output.path)
+
+
+def _write(path: Path, text: str) -> None:
+    """Write a file in one step, through a temporary file of the same folder."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    descriptor, temporary = tempfile.mkstemp(dir=path.parent, prefix=f".{path.name}.")
+    with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+        handle.write(text)
+    os.replace(temporary, path)
+
+
+def build_outputs(
+    configuration: Configuration,
+    source: RecordSource | None = None,
+    provenance: ProvenanceProvider | None = None,
+) -> BuildResult:
+    """
+    Check the records of a consumer, then write its declared outputs.
+
+    Parameters
+    ----------
+    configuration : Configuration
+        Configuration of the consumer, whose section `build` declares the outputs.
+    source : RecordSource | None
+        Provider of the records, or None to read the files matched by the configuration.
+    provenance : ProvenanceProvider | None
+        Provider of the sources of the records, or None to read the Git repository of the root.
+
+    Returns
+    -------
+    BuildResult
+        Issues found, and the files written, none when an error was reported.
+    """
+    sink = IssueSink(configuration.severities)
+    validator = SchemaValidator()
+    composer = _checked(configuration, source, sink, validator)
+    signatures = read_signatures(
+        configuration.build.denotes_targets, configuration.root, validator, sink
     )
-    run_record_checks(context)
-    return sorted(sink.issues, key=lambda issue: (issue.resource, issue.pointer, issue.check))
+    sources = (provenance or GitProvenance()).sources(configuration.root)
+    builder = _Builder(configuration, composer, signatures, sources, sink)
+    contents = [
+        (output.path, builder.content(index, output))
+        for index, output in enumerate(configuration.build.outputs)
+    ]
+    if sink.has_errors():
+        return BuildResult(_sorted(sink), ())
+    written: list[Path] = []
+    for path, text in contents:
+        if text is not None:
+            _write(path, text)
+            written.append(path)
+    return BuildResult(_sorted(sink), tuple(written))

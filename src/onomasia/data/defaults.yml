@@ -87,6 +87,30 @@ checks:
   template-without-placeholder:
     severity: error
     gloss: the template of a typographic class omits the placeholder of the base
+  reserved-prefix:
+    severity: error
+    gloss: a declared macro name starts with the prefix reserved for derived names
+  macro-name-collision:
+    severity: error
+    gloss: two entries of one macro table bear the same macro name
+  ambiguous-target:
+    severity: error
+    gloss: two entries of one macro table denote the same unit, so a view cannot choose a name
+  too-many-parameters:
+    severity: error
+    gloss: a macro takes more parameters than TeX admits
+  missing-separator:
+    severity: error
+    gloss: an entry denoting a variadic operator declares no separator of its items
+  macro-cycle:
+    severity: error
+    gloss: the bodies of macros call one another in a cycle, so their expansion never ends
+  invalid-contract:
+    severity: error
+    gloss: an input document breaks the schema of its contract or names another contract
+  unresolved-output:
+    severity: error
+    gloss: an output of the build names a notation, an overlay or a glossary that no record holds
 
 # Vocabularies read by the checks, replaced as a whole by the vocabularies of a consumer.
 vocabulary:
@@ -108,3 +132,11 @@ typography:
   # Placeholder standing for the base of an entry in the template of its class. It differs from
   # every TeX construct, since # opens the parameters of a macro.
   base_placeholder: "{{base}}"
+  # Prefix of the macro name derived for an entry without a declared name, which no declared name
+  # may start with, so that a derived name never overwrites a command of TeX.
+  macro_prefix: ono
+  # Words replacing the digits of an identifier in a derived name, since a control word of TeX
+  # holds letters only.
+  digit_names: [Zero, One, Two, Three, Four, Five, Six, Seven, Eight, Nine]
+  # Parameters of one macro, as TeX admits them.
+  maximum_parameters: 9

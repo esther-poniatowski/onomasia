@@ -236,9 +236,17 @@ class Composer:
                 seen.setdefault(identifier, name)
                 sections[name][identifier] = Visible(entry, record)
 
-    def apply_overlay(self, overlay: Record) -> Composition | None:
+    def apply_overlay(self, overlay: Record, base: Composition | None = None) -> Composition | None:
         """
         Apply an overlay to the composition of the notation that it overlays.
+
+        Parameters
+        ----------
+        overlay : Record
+            Overlay to apply.
+        base : Composition | None
+            Composition to change, such as the notation under an earlier overlay, or None for the
+            composition of the notation itself.
 
         Returns
         -------
@@ -246,7 +254,9 @@ class Composer:
             Composition of the notation under the overlay, the overridden entries declared by the
             overlay, or None when the notation is unknown.
         """
-        notation = self.compose(RecordKind.NOTATION, overlay.overlays or "")
+        notation = (
+            base if base is not None else self.compose(RecordKind.NOTATION, overlay.overlays or "")
+        )
         if notation is None:
             self._sink.report(
                 "unresolved-overlay",
