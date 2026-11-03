@@ -6,7 +6,7 @@ Defines commands available via `python -m onomasia` or `onomasia` if installed a
 Commands
 --------
 info : Display diagnostic information.
-check : Check the records of a consumer.
+check : Run every check of a build, without writing the outputs.
 build : Check the records, then write the declared outputs.
 
 See Also
@@ -41,7 +41,7 @@ def cli_check(
         None, "--config", help="Configuration file, onomasia.yml at the root by default."
     ),
 ) -> None:
-    """Check the records of a consumer; exit 1 when an error is reported."""
+    """Run every check of a build without writing; exit 1 when an error is reported."""
     try:
         configuration = load_configuration(root, config or root / CONFIGURATION_FILE)
         issues = check_records(configuration)

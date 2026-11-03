@@ -16,7 +16,7 @@ from onomasia.configuration import load_configuration
 from onomasia.contracts import CONTRACT_SCHEMAS, MACRO_LOOKUP, MACRO_TABLE, TERM_TABLE
 from onomasia.provenance import Source
 from onomasia.records.validation import SchemaValidator
-from onomasia.service import build_outputs
+from onomasia.service import build_outputs, check_records
 
 SOURCE = Source("https://example.org/vault.git", "0123456789abcdef0123456789abcdef01234567", False)
 
@@ -265,6 +265,18 @@ def test_planted_defect_is_reported_and_nothing_is_written(tmp_path: Path, check
     assert check in {issue.check for issue in result.issues if issue.pointer == pointer}
     assert result.written == ()
     assert not (tmp_path / "out").exists()
+
+
+@pytest.mark.parametrize("check", sorted(PLANTED))
+def test_check_reports_the_defects_of_a_build_and_writes_nothing(
+    tmp_path: Path, check: str
+) -> None:
+    records, pointer = PLANTED[check]
+    root = _consumer(tmp_path, records)
+    issues = check_records(load_configuration(root, root / "onomasia.yml"))
+    assert check in {issue.check for issue in issues if issue.pointer == pointer}
+    assert issues == _build(root).issues
+    assert not (root / "out").exists()
 
 
 def test_output_naming_an_absent_notation_is_reported(tmp_path: Path) -> None:

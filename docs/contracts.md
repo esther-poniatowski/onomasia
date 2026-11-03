@@ -81,7 +81,7 @@ The identifier `w-out` gives `onowOut`, and `sigma2` gives `onosigmaTwo`. A decl
 - each unit is denoted by one entry at most;
 - no body calls itself through the bodies of other macros.
 
-The build checks these properties, and the [catalog of checks](formats.md#^checks) names the checks run. ^names
+Both commands check these properties, and the [catalog of checks](formats.md#^checks) names the checks run. ^names
 
 ## Macro lookup
 

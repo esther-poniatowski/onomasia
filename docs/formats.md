@@ -112,16 +112,13 @@ Each term, rule and entry may declare a status among the statuses of the vocabul
 
 ## Checks of the records
 
-The packaged file `data/defaults.yml` lists every check, with its default severity and its gloss. The two commands of Onomasia run different sets of checks:
-
-- the command `onomasia check` runs the checks of records, of compositions and of overlays;
-- the command `onomasia build` runs the same checks, then the checks reserved to a build.
-
-The checks reserved to a build fall in three groups:
+The packaged file `data/defaults.yml` lists every check, with its default severity and its gloss. The commands `onomasia check` and `onomasia build` run every check of the catalog, and only the build writes the outputs. The first group of checks reads the records, their compositions and the overlays. The second group reads the outputs declared by the configuration:
 
 - the checks of each macro table built for an output: `reserved-prefix`, `macro-name-collision`, `ambiguous-target`, `too-many-parameters`, `missing-separator` and `macro-cycle`;
 - the check of the input documents, `invalid-contract`;
-- the check of the outputs, `unresolved-output`.
+- the check of the outputs themselves, `unresolved-output`.
+
+The checks of the outputs see only the notations named by an output, so a notation named by no output escapes them.
 
 A check of records reports each issue at one record, with the [JSON Pointer](https://www.rfc-editor.org/rfc/rfc6901) of the offending value:
 

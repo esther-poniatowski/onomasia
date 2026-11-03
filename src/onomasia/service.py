@@ -1,9 +1,11 @@
 """
 Services of Onomasia on one consumer: the check of its records, and the build of its outputs.
 
-Both services load, compose and check the records alike. The build then computes every declared
-output in memory, and writes them only when no error was reported, each file replaced in one step,
-so that a failed build leaves the former outputs whole.
+Both services run the same assembly: they load, compose and check the records, read the input
+documents, and compute every declared output in memory, which runs the checks of the outputs. The
+check stops there, so that a check passes exactly when the build passes. The build then writes the
+outputs only when no error was reported, each file replaced in one step, so that a failed build
+leaves the former outputs whole.
 
 Classes
 -------
@@ -13,7 +15,7 @@ BuildResult
 Functions
 ---------
 check_records(configuration, source) -> list[Issue]
-    Load, compose and check the records of a consumer.
+    Run every check of a consumer without writing any output.
 build_outputs(configuration, source, provenance) -> BuildResult
     Check the records of a consumer, then write its declared outputs.
 """
@@ -98,7 +100,10 @@ def _sorted(sink: IssueSink) -> list[Issue]:
 
 def check_records(configuration: Configuration, source: RecordSource | None = None) -> list[Issue]:
     """
-    Load, compose and check the records of a consumer.
+    Run every check of a consumer, those of its outputs included, without writing any output.
+
+    The check is a build that writes nothing: it reads the same inputs and reports the same issues
+    as `build_outputs`, so that a consumer whose check passes has a build that passes.
 
     Parameters
     ----------
@@ -113,7 +118,7 @@ def check_records(configuration: Configuration, source: RecordSource | None = No
         Issues found, sorted by resource, then pointer, then check.
     """
     sink = IssueSink(configuration.severities)
-    _checked(configuration, source, sink, SchemaValidator())
+    _assemble(configuration, source, (), sink)
     return _sorted(sink)
 
 
@@ -208,6 +213,25 @@ def _write(path: Path, text: str) -> None:
     os.replace(temporary, path)
 
 
+def _assemble(
+    configuration: Configuration,
+    source: RecordSource | None,
+    sources: tuple[Source, ...],
+    sink: IssueSink,
+) -> list[tuple[Path, str | None]]:
+    """Check the records, read the inputs, and compute the text of each output, writing nothing."""
+    validator = SchemaValidator()
+    composer = _checked(configuration, source, sink, validator)
+    signatures = read_signatures(
+        configuration.build.denotes_targets, configuration.root, validator, sink
+    )
+    builder = _Builder(configuration, composer, signatures, sources, sink)
+    return [
+        (output.path, builder.content(index, output))
+        for index, output in enumerate(configuration.build.outputs)
+    ]
+
+
 def build_outputs(
     configuration: Configuration,
     source: RecordSource | None = None,
@@ -231,17 +255,8 @@ def build_outputs(
         Issues found, and the files written, none when an error was reported.
     """
     sink = IssueSink(configuration.severities)
-    validator = SchemaValidator()
-    composer = _checked(configuration, source, sink, validator)
-    signatures = read_signatures(
-        configuration.build.denotes_targets, configuration.root, validator, sink
-    )
     sources = (provenance or GitProvenance()).sources(configuration.root)
-    builder = _Builder(configuration, composer, signatures, sources, sink)
-    contents = [
-        (output.path, builder.content(index, output))
-        for index, output in enumerate(configuration.build.outputs)
-    ]
+    contents = _assemble(configuration, source, sources, sink)
     if sink.has_errors():
         return BuildResult(_sorted(sink), ())
     written: list[Path] = []

@@ -47,6 +47,8 @@ The [record formats](../formats.md), the [configuration](../configuration.md) an
 
 **A catalog of checks.** Every check is listed with its default severity in the packaged defaults. A consumer changes a severity or turns a check off, and cannot name a check absent from the catalog. ^catalog
 
+**A check as a build writing nothing.** The command `onomasia check` reads the inputs of the build, computes every output and runs every check of the catalog, then writes nothing. A consumer whose check passes therefore has a build that passes. ^check-as-build
+
 **Collisions reported where their entries meet.** A collision is reported at the record that first brings its two entries together, and never again at a record importing it. ^collisions
 
 **Arguments from the denotes targets.** A macro takes its arity, its binder and its variadic flag from the unit that its entry denotes. ^arguments
@@ -123,6 +125,14 @@ The [record formats](../formats.md), the [configuration](../configuration.md) an
 | --- | --- | --- |
 | A resolver injected into the core, with an adapter reading explicit bindings from the configuration | Texts checked at once | The adapter would add a format of explicit bindings to the configuration, to be retired when Anagraphe resolves binding keys. The researcher chose to avoid that provisional format |
 | **Checks of texts after Anagraphe** | No provisional format of bindings | Taken. Until then, Onomasia checks no text |
+
+**Scope of the command `onomasia check`.**
+
+| Option | Benefit | Reason it is not taken |
+| --- | --- | --- |
+| The checks of records only, the checks of outputs left to the build | The check reads no denotes targets | The check passes where the build fails, so a hook or a pipeline running the check lets a reserved prefix or an ambiguous target through |
+| A macro table also built for each notation alone | A notation named by no output is checked too | One defect is reported twice, alone and within an output, and the collisions between notations depend on the notations combined by an output |
+| **Every check of the build, without writing** | The check passes exactly when the build passes | Taken. A consumer whose denotes targets are missing fails its check, as its build would fail |
 
 **Location of a reported collision.**
 

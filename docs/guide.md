@@ -23,7 +23,7 @@ A path passed to `--config` resolves against the current folder, and the file mu
 
 ## Checking the records
 
-Before building, a consumer finds the defects of its records. The command `onomasia check` runs the checks of records on the composed records of the consumer, overlays applied. The checks of macro tables, of input documents and of outputs run only during a build, as the [catalog of checks](formats.md#^checks) states. The following command checks the records of a vault:
+Before building, a consumer finds the defects of its records and of its outputs. The command `onomasia check` runs every check of a build, as the [catalog of checks](formats.md#^checks) lists them, and writes no output. Therefore, a check passes exactly when the build passes. The following command checks a vault:
 
 ```console
 onomasia check --root path/to/vault
@@ -44,7 +44,7 @@ The line opens on the resource and the JSON Pointer of the offending value, then
 
 ## Building the outputs
 
-To print its symbols, a consumer writes the outputs declared under the key `build` of its configuration. The command `onomasia build` runs the checks of records, reads the denotes targets, runs the checks of each macro table, then writes the outputs:
+To print its symbols, a consumer writes the outputs declared under the key `build` of its configuration. The command `onomasia build` runs the checks of `onomasia check`, then writes the outputs:
 
 ```console
 onomasia build --root path/to/vault
