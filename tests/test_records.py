@@ -357,6 +357,57 @@ def test_planted_defect_is_reported(tmp_path: Path, check: str) -> None:
     assert (check, resource, pointer) in _issues(_consumer(tmp_path, planted))
 
 
+def _glossary(identifier: str, terms: dict, imports: list | None = None) -> dict:
+    """Write a glossary holding terms, each a label, and imports."""
+    return {
+        "_schema": "onomasia:glossary@1",
+        "id": identifier,
+        "imports": [{"from": source} for source in imports or []],
+        "terms": {term: {"label": label, "gloss": "g"} for term, label in terms.items()},
+    }
+
+
+def test_collision_of_two_imports_is_reported_once_at_the_record_joining_them(
+    tmp_path: Path,
+) -> None:
+    records = {
+        "glossary-a.yml": _glossary("a", {"gain": "gain"}),
+        "glossary-b.yml": _glossary("b", {"amplification": "gain"}),
+        "glossary-c.yml": _glossary("c", {}, ["a", "b"]),
+        "glossary-d.yml": _glossary("d", {}, ["c"]),
+    }
+    assert _issues(_consumer(tmp_path, records)) == [
+        ("form-collision", "glossary-c.yml", "/imports/1")
+    ]
+
+
+def test_collision_with_an_imported_term_is_reported_at_the_local_term(tmp_path: Path) -> None:
+    records = {
+        "glossary-a.yml": _glossary("a", {"gain": "gain"}),
+        "glossary-c.yml": _glossary("c", {"amplification": "gain"}, ["a"]),
+    }
+    assert _issues(_consumer(tmp_path, records)) == [
+        ("form-collision", "glossary-c.yml", "/terms/amplification")
+    ]
+
+
+def test_template_of_an_overlay_causing_a_collision_is_reported_at_the_overlay(
+    tmp_path: Path,
+) -> None:
+    notation = _with(NOTATION, ["entries", "lam", "body"], "\\mathbf{W}")
+    overlay = {
+        "_schema": "onomasia:overlay@1",
+        "id": "slides",
+        "overlays": "mixture",
+        "classes": {"matrix": {"template": "\\mathbf{{{base}}}"}},
+    }
+    records = dict(CLEAN, **{"projects/p/notation.yml": notation, "overlay.yml": overlay})
+    collisions = [
+        issue for issue in _issues(_consumer(tmp_path, records)) if issue[0] != "undeclared-entry"
+    ]
+    assert collisions == [("body-collision", "overlay.yml", "/overlays")]
+
+
 def test_consumer_turns_a_check_off(tmp_path: Path) -> None:
     configuration = dict(CONFIGURATION, checks={"undeclared-entry": "off"})
     assert _issues(_consumer(tmp_path, CLEAN, configuration)) == []

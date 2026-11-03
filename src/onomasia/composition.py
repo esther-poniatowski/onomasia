@@ -66,11 +66,15 @@ class Composition:
         Visible entries of each section, by identifier.
     namespaces : Mapping[str, Composition]
         Composition of the source of each alias.
+    merged : tuple[tuple[str, Composition], ...]
+        Composition of each merged source, with the pointer of the import merging it; for an
+        overlay, the notation that it changes, with the pointer of its key `overlays`.
     """
 
     record: Record
     sections: Mapping[str, Mapping[str, Visible]]
     namespaces: Mapping[str, "Composition"] = field(default_factory=dict)
+    merged: tuple[tuple[str, "Composition"], ...] = ()
 
     def lookup(self, section: str, reference: str) -> Visible | None:
         """
@@ -94,6 +98,24 @@ class Composition:
         for identifier, visible in self.sections.get(section, {}).items():
             if visible.record is self.record:
                 yield identifier, visible
+
+    def pointer(self, section: str, identifier: str) -> str:
+        """
+        Locate a visible entry in the composed record: its declaration, or the import adopting it.
+
+        Examples
+        --------
+        >>> from onomasia.records.model import Record, RecordKind
+        >>> record = Record(RecordKind.GLOSSARY, "g", "g.yml", (), {"terms": {}, "rules": {}})
+        >>> Composition(record, {"terms": {}, "rules": {}}).pointer("terms", "x")
+        '/terms/x'
+        """
+        visible = self.sections.get(section, {}).get(identifier)
+        if visible is not None and visible.record is not self.record:
+            for pointer, source in self.merged:
+                if source.sections.get(section, {}).get(identifier) is visible:
+                    return pointer
+        return f"/{section}/{identifier}"
 
 
 class Composer:
@@ -147,6 +169,7 @@ class Composer:
             return self._done[key]
         sections: dict[str, dict[str, Visible]] = {name: {} for name in record.kind.sections}
         namespaces: dict[str, Composition] = {}
+        merged: list[tuple[str, Composition]] = []
         for item in record.imports:
             source = self._records.get((record.kind, item.source))
             if source is None:
@@ -179,8 +202,9 @@ class Composer:
                     namespaces[item.alias] = composed
                 continue
             self._merge(record, item, composed, sections)
+            merged.append((item.pointer, composed))
         self._declare(record, sections)
-        composition = Composition(record, sections, namespaces)
+        composition = Composition(record, sections, namespaces, tuple(merged))
         self._done[key] = composition
         return composition
 
@@ -289,7 +313,7 @@ class Composer:
                 continue
             assert isinstance(change, Override) and isinstance(present.entry, Entry)
             sections["entries"][identifier] = Visible(_overridden(present.entry, change), overlay)
-        return Composition(overlay, sections, notation.namespaces)
+        return Composition(overlay, sections, notation.namespaces, (("/overlays", notation),))
 
 
 def _same(first: Visible, second: Visible) -> bool:

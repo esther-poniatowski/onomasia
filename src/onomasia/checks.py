@@ -3,7 +3,8 @@ Checks of composed records against the vocabularies and the typography of the co
 
 Each check is a function reading one `CheckContext` and reporting to its sink; the tuple
 `RECORD_CHECKS` registers them, so a new check joins the run without changing the runner. A check
-reports an entry only in the record that declares it, so that a glossary imported by ten others is
+of one entry reports it in the record that declares it, and a check of a collision reports it in
+the record that first brings its two entries together, so that a glossary imported by ten others is
 reported once.
 
 Classes
@@ -252,77 +253,162 @@ def _literal_forms(entry: Term | LexicalRule) -> Iterator[str]:
         yield text if entry.case_sensitive else text.casefold()
 
 
+@dataclass(frozen=True)
+class Collision:
+    """
+    Two visible entries sharing a key, such as a written form or a printed body.
+
+    Attributes
+    ----------
+    key : str
+        Value that the two entries share.
+    first, second : tuple[str, str, Visible]
+        Section, identifier and entry of each member, the first one met first.
+    """
+
+    key: str
+    first: tuple[str, str, Visible]
+    second: tuple[str, str, Visible]
+
+    def signature(self) -> tuple[str, frozenset[tuple[str, str, str]]]:
+        """Identify the collision by its key and the declarations of its members, in any order."""
+        members = (self.first, self.second)
+        return self.key, frozenset((s, i, v.record.resource) for s, i, v in members)
+
+    def pointer(self, composition: Composition) -> str:
+        """Locate the collision at a member declared by the composition, or at the import of one."""
+        section, identifier, visible = self.second
+        if visible.record is not composition.record and self.first[2].record is composition.record:
+            section, identifier, _ = self.first
+        return composition.pointer(section, identifier)
+
+
+def _new_collisions(
+    composition: Composition, collisions: Callable[[Composition], list[Collision]]
+) -> Iterator[Collision]:
+    """
+    Yield the collisions first brought together by a composition.
+
+    A collision already held by a merged source is reported in the composition of that source, so
+    each collision is reported once, at the record that joins its two members.
+    """
+    inherited = {
+        collision.signature()
+        for _, source in composition.merged
+        for collision in collisions(source)
+    }
+    for collision in collisions(composition):
+        if collision.signature() not in inherited:
+            yield collision
+
+
+def _form_collisions(composition: Composition) -> list[Collision]:
+    """List the pairs of terms sharing a written form, each with the first term met."""
+    owners: dict[str, tuple[str, str, Visible]] = {}
+    collisions: list[Collision] = []
+    for identifier, visible in composition.sections.get("terms", {}).items():
+        assert isinstance(visible.entry, Term)
+        for form in _literal_forms(visible.entry):
+            first = owners.setdefault(form, ("terms", identifier, visible))
+            if first[1] != identifier:
+                collisions.append(Collision(form, first, ("terms", identifier, visible)))
+    return collisions
+
+
+def _shadowed_terms(composition: Composition) -> list[Collision]:
+    """List the pairs of a term and a rule forbidding one of its written forms."""
+    owners: dict[str, tuple[str, str, Visible]] = {}
+    for identifier, visible in composition.sections.get("terms", {}).items():
+        assert isinstance(visible.entry, Term)
+        for form in _literal_forms(visible.entry):
+            owners.setdefault(form, ("terms", identifier, visible))
+    collisions: list[Collision] = []
+    for identifier, visible in composition.sections.get("rules", {}).items():
+        assert isinstance(visible.entry, LexicalRule)
+        for form in _literal_forms(visible.entry):
+            if form in owners:
+                collisions.append(Collision(form, owners[form], ("rules", identifier, visible)))
+    return collisions
+
+
 def check_form_collisions(context: CheckContext) -> None:
     """Check that terms share no form, and that no rule forbids a form of a term."""
     for composition in context.glossaries:
-        owners: dict[str, tuple[str, Visible]] = {}
-        for identifier, visible in composition.sections.get("terms", {}).items():
-            assert isinstance(visible.entry, Term)
-            for form in _literal_forms(visible.entry):
-                first = owners.setdefault(form, (identifier, visible))
-                local = (
-                    visible.record is composition.record or first[1].record is composition.record
-                )
-                if first[0] != identifier and local:
-                    message = f"{identifier} and {first[0]} share the form {form!r}"
-                    context.sink.report(
-                        "form-collision",
-                        composition.record.resource,
-                        f"/terms/{identifier}",
-                        message,
-                    )
-        for identifier, visible in composition.sections.get("rules", {}).items():
-            assert isinstance(visible.entry, LexicalRule)
-            for form in _literal_forms(visible.entry):
-                owner = owners.get(form)
-                if owner is not None and (
-                    visible.record is composition.record or owner[1].record is composition.record
-                ):
-                    message = f"the rule forbids {form!r}, a form of the term {owner[0]}"
-                    context.sink.report(
-                        "rule-shadows-term",
-                        composition.record.resource,
-                        f"/rules/{identifier}",
-                        message,
-                    )
+        for collision in _new_collisions(composition, _form_collisions):
+            message = (
+                f"{collision.second[1]} and {collision.first[1]} share the form {collision.key!r}"
+            )
+            context.sink.report(
+                "form-collision",
+                composition.record.resource,
+                collision.pointer(composition),
+                message,
+            )
+        for collision in _new_collisions(composition, _shadowed_terms):
+            rule, term = collision.second[1], collision.first[1]
+            message = f"the rule {rule} forbids {collision.key!r}, a form of the term {term}"
+            context.sink.report(
+                "rule-shadows-term",
+                composition.record.resource,
+                collision.pointer(composition),
+                message,
+            )
+
+
+def _body_collisions(placeholder: str) -> Callable[[Composition], list[Collision]]:
+    """Return the lister of the pairs of entries printing the same body under a placeholder."""
+
+    def collisions(composition: Composition) -> list[Collision]:
+        printed: dict[str, tuple[str, str, Visible]] = {}
+        found: list[Collision] = []
+        for identifier, visible in composition.sections.get("entries", {}).items():
+            if not isinstance(visible.entry, Entry):
+                continue
+            body = printed_body(visible.entry, composition, placeholder)
+            if body is None:
+                continue
+            first = printed.setdefault(body, ("entries", identifier, visible))
+            if first[1] != identifier:
+                found.append(Collision(body, first, ("entries", identifier, visible)))
+        return found
+
+    return collisions
 
 
 def check_entries(context: CheckContext) -> None:
     """Check the printed form and the meaning of each entry, and the collisions of printed forms."""
     placeholder = context.typography.base_placeholder
     for composition in context.notations:
-        printed: dict[str, str] = {}
-        for identifier, visible in composition.sections.get("entries", {}).items():
+        for identifier, visible in composition.local("entries"):
             entry = visible.entry
             if not isinstance(entry, Entry):
                 continue
-            local = visible.record is composition.record
             pointer = f"/entries/{identifier}"
-            if local:
-                _check_meaning(context, visible, entry, pointer)
-                if entry.body is not None and entry.base is not None:
-                    _report(
-                        context,
-                        "ambiguous-body",
-                        visible,
-                        pointer,
-                        "the entry gives both a body and a base",
-                    )
-            body = printed_body(entry, composition, placeholder)
-            if body is None:
-                if local:
-                    _report(
-                        context,
-                        "missing-body",
-                        visible,
-                        pointer,
-                        "neither a body nor a base under a class with a template",
-                    )
-                continue
-            first = printed.setdefault(body, identifier)
-            if first != identifier and local:
-                message = f"{identifier} and {first} both print {body!r}"
-                context.sink.report("body-collision", composition.record.resource, pointer, message)
+            _check_meaning(context, visible, entry, pointer)
+            if entry.body is not None and entry.base is not None:
+                _report(
+                    context,
+                    "ambiguous-body",
+                    visible,
+                    pointer,
+                    "the entry gives both a body and a base",
+                )
+            if printed_body(entry, composition, placeholder) is None:
+                _report(
+                    context,
+                    "missing-body",
+                    visible,
+                    pointer,
+                    "neither a body nor a base under a class with a template",
+                )
+        for collision in _new_collisions(composition, _body_collisions(placeholder)):
+            message = f"{collision.second[1]} and {collision.first[1]} both print {collision.key!r}"
+            context.sink.report(
+                "body-collision",
+                composition.record.resource,
+                collision.pointer(composition),
+                message,
+            )
 
 
 def _check_meaning(context: CheckContext, visible: Visible, entry: Entry, pointer: str) -> None:
