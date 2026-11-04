@@ -1,7 +1,7 @@
 ---
 tags:
   - decision
-status: proposed
+status: accepted
 created: 2026-11-04
 revised: 2026-11-04
 index: "[Architecture decisions](docs/adr/_index.md)"
