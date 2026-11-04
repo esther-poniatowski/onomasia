@@ -29,7 +29,7 @@ Onomasia removes both limitations. A notation entry is defined once, and every m
 
 ### Status
 
-Pre-alpha. The package checks glossaries, notations and overlays, and builds six products: three documents of its [contracts](docs/contracts.md) and three serializations of its macros. The checks of texts are not yet implemented. These checks will match terms in prose and symbols in mathematics, once the tool Anagraphe resolves binding keys: the keys by which a text names its glossary, its notation and its audiences. The [founding decision](docs/adr/formats-and-contracts.md) is accepted.
+Pre-alpha. The package checks glossaries, notations and overlays, and builds six products: three documents of its [contracts](docs/contracts.md) and three serializations of its macros. The checks of texts match terms in prose and macros in mathematics, for the glossaries, notations and audiences bound to each text through the tool Anagraphe. The [founding decision](docs/adr/formats-and-contracts.md) is accepted.
 
 ---
 

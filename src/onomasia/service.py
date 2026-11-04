@@ -33,6 +33,7 @@ from .configuration import Configuration, Output, Product
 from .contracts import (
     macro_lookup_document,
     macro_table_document,
+    read_scope_table,
     read_signatures,
     term_table_document,
 )
@@ -40,7 +41,9 @@ from .issues import Issue, IssueSink
 from .provenance import GitProvenance, ProvenanceProvider, Source
 from .records.model import RecordKind
 from .records.validation import SchemaValidator
-from .repository import FileRecordSource, RecordSource, load_records
+from .repository import FileRecordSource, RecordSource, load_records, matched_files
+from .texts.bindings import AnagrapheBindings, BindingSource
+from .texts.checks import TextChecker
 from .typography.serializers import serializer
 from .typography.table import MacroTable, TargetSignature, build_macro_table
 
@@ -94,16 +97,26 @@ def _checked(
 
 
 def _sorted(sink: IssueSink) -> list[Issue]:
-    """Issues of a sink, sorted by resource, then pointer, then check."""
-    return sorted(sink.issues, key=lambda issue: (issue.resource, issue.pointer, issue.check))
+    """Issues of a sink, each identical issue kept once, sorted by resource, then pointer, then
+    line, then check; an issue is reported twice when a macro table checked for the texts is also
+    built for an output."""
+    return sorted(
+        dict.fromkeys(sink.issues),
+        key=lambda issue: (issue.resource, issue.pointer, issue.line or 0, issue.check),
+    )
 
 
-def check_records(configuration: Configuration, source: RecordSource | None = None) -> list[Issue]:
+def check_records(
+    configuration: Configuration,
+    source: RecordSource | None = None,
+    bindings: BindingSource | None = None,
+) -> list[Issue]:
     """
     Run every check of a consumer, those of its outputs included, without writing any output.
 
-    The check is a build that writes nothing: it reads the same inputs and reports the same issues
-    as `build_outputs`, so that a consumer whose check passes has a build that passes.
+    The check is a build that writes nothing: it reads the same inputs and reports the issues of
+    `build_outputs`, so that a consumer whose check passes has a build that passes. When the
+    consumer declares texts, the check also reads each text against the records bound to it.
 
     Parameters
     ----------
@@ -111,15 +124,56 @@ def check_records(configuration: Configuration, source: RecordSource | None = No
         Configuration of the consumer.
     source : RecordSource | None
         Provider of the records, or None to read the files matched by the configuration.
+    bindings : BindingSource | None
+        Provider of the bindings of the texts, or None to resolve them through Anagraphe.
 
     Returns
     -------
     list[Issue]
-        Issues found, sorted by resource, then pointer, then check.
+        Issues found, sorted by resource, then pointer, then line, then check.
     """
     sink = IssueSink(configuration.severities)
-    _assemble(configuration, source, (), sink)
+    composer, signatures, _ = _assemble(configuration, source, (), sink)
+    if configuration.texts is not None:
+        _check_texts(configuration, composer, signatures, bindings, sink)
     return _sorted(sink)
+
+
+def _check_texts(
+    configuration: Configuration,
+    composer: Composer,
+    signatures: dict[str, TargetSignature],
+    bindings: BindingSource | None,
+    sink: IssueSink,
+) -> None:
+    """Check every text of the consumer against the records bound to it."""
+    texts = configuration.texts
+    assert texts is not None
+    root = configuration.root
+    scope = (
+        read_scope_table(texts.scope_table, root, SchemaValidator(), sink)
+        if texts.scope_table is not None
+        else None
+    )
+    checker = TextChecker(
+        texts,
+        configuration.vocabulary,
+        configuration.typography,
+        composer,
+        bindings or AnagrapheBindings(root, texts.anagraphe),
+        signatures,
+        scope,
+        sink,
+    )
+    for resource in matched_files(root, texts.paths, texts.exclude):
+        if not checker.binds(resource):
+            continue
+        try:
+            source = (root / resource).read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError) as error:
+            sink.report("unreadable-text", resource, "", f"cannot read the text: {error}")
+            continue
+        checker.check(resource, source)
 
 
 class _Builder:
@@ -218,18 +272,20 @@ def _assemble(
     source: RecordSource | None,
     sources: tuple[Source, ...],
     sink: IssueSink,
-) -> list[tuple[Path, str | None]]:
-    """Check the records, read the inputs, and compute the text of each output, writing nothing."""
+) -> tuple[Composer, dict[str, TargetSignature], list[tuple[Path, str | None]]]:
+    """Check the records, read the inputs, and compute the text of each output, writing nothing;
+    return the composer and the signatures, for the checks of texts."""
     validator = SchemaValidator()
     composer = _checked(configuration, source, sink, validator)
     signatures = read_signatures(
         configuration.build.denotes_targets, configuration.root, validator, sink
     )
     builder = _Builder(configuration, composer, signatures, sources, sink)
-    return [
+    contents = [
         (output.path, builder.content(index, output))
         for index, output in enumerate(configuration.build.outputs)
     ]
+    return composer, signatures, contents
 
 
 def build_outputs(
@@ -256,7 +312,7 @@ def build_outputs(
     """
     sink = IssueSink(configuration.severities)
     sources = (provenance or GitProvenance()).sources(configuration.root)
-    contents = _assemble(configuration, source, sources, sink)
+    _, _, contents = _assemble(configuration, source, sources, sink)
     if sink.has_errors():
         return BuildResult(_sorted(sink), ())
     written: list[Path] = []

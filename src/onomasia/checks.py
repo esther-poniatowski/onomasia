@@ -28,6 +28,7 @@ from .records.model import (
     Alternative,
     Contexts,
     Entry,
+    Form,
     LexicalRule,
     RecordKind,
     Replacement,
@@ -35,6 +36,9 @@ from .records.model import (
     TypographicClass,
 )
 from .typography.bodies import printed_body
+from .grammar.frames import FrameError, slot_refs
+from .grammar.frames import parse as parse_frame
+from .grammar.patterns import regex_problem
 
 
 @dataclass(frozen=True)
@@ -472,6 +476,49 @@ def _check_meaning(context: CheckContext, visible: Visible, entry: Entry, pointe
         )
 
 
+def check_forms_and_frames(context: CheckContext) -> None:
+    """Check the regular expressions of the forms, and the frames of the terms."""
+    for composition in context.glossaries:
+        for identifier, visible in composition.local("terms"):
+            assert isinstance(visible.entry, Term)
+            pointer = f"/terms/{identifier}"
+            _check_regexes(context, visible, f"{pointer}/forms", visible.entry.forms)
+            for number, frame in enumerate(visible.entry.frames):
+                problem = _frame_problem(composition, frame)
+                if problem is not None:
+                    _report(
+                        context, "invalid-frame", visible, f"{pointer}/frames/{number}", problem
+                    )
+        for identifier, visible in composition.local("rules"):
+            assert isinstance(visible.entry, LexicalRule)
+            pointer = f"/rules/{identifier}"
+            _check_regexes(context, visible, f"{pointer}/forms", visible.entry.forms)
+            _check_regexes(context, visible, f"{pointer}/exceptions", visible.entry.exceptions)
+
+
+def _check_regexes(
+    context: CheckContext, visible: Visible, pointer: str, forms: Iterable[Form]
+) -> None:
+    """Report each form given as a regular expression that cannot serve as a form."""
+    for number, form in enumerate(forms):
+        problem = regex_problem(form.text) if form.regex else None
+        if problem is not None:
+            _report(context, "invalid-form", visible, f"{pointer}/{number}/regex", problem)
+
+
+def _frame_problem(composition: Composition, frame: str) -> str | None:
+    """Return why a frame is malformed, or names a slot term absent from the glossary."""
+    try:
+        nodes = parse_frame(frame)
+    except FrameError as error:
+        return str(error)
+    for ref in slot_refs(nodes):
+        found = composition.lookup("terms", ref)
+        if found is None or not isinstance(found.entry, Term):
+            return f"the slot names no term {ref}"
+    return None
+
+
 RECORD_CHECKS: tuple[Callable[[CheckContext], None], ...] = (
     check_statuses,
     check_term_references,
@@ -479,6 +526,7 @@ RECORD_CHECKS: tuple[Callable[[CheckContext], None], ...] = (
     check_contexts,
     check_form_collisions,
     check_entries,
+    check_forms_and_frames,
 )
 """Checks run on the composed records, in order."""
 

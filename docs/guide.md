@@ -23,7 +23,7 @@ A path passed to `--config` resolves against the current folder, and the file mu
 
 ## Checking the records
 
-Before building, a consumer finds the defects of its records and of its outputs. The command `onomasia check` runs every check of a build, as the [catalog of checks](formats.md#^checks) lists them, and writes no output. Therefore, a check passes exactly when the build passes. The following command checks a vault:
+Before building, a consumer finds the defects of its records and of its outputs. The command `onomasia check` runs every check of a build, then the checks of texts, as the [catalog of checks](formats.md#^checks) lists them, and writes no output. Therefore, when the check of a consumer passes, its build passes. The following command checks a vault:
 
 ```console
 onomasia check --root path/to/vault
@@ -42,9 +42,37 @@ The line opens on the resource and the JSON Pointer of the offending value, then
 - 1 when an error is reported;
 - 2 when the configuration is missing, unreadable, outside the root or invalid.
 
+## Checking the texts
+
+A consumer declaring the section `texts` of its configuration checks its texts too, with the same command `onomasia check`. Each text is checked against the glossaries, the notations and the audiences bound to it. Anagraphe resolves these bindings along the directory chain, so a text declares them in its frontmatter, or inherits them from the index of an enclosing folder. The section `bindings` of the Anagraphe configuration names the key of each role:
+
+```yaml
+bindings:
+  index: _index.md
+  roles:
+    onomasia.glossary: {key: glossary}
+    onomasia.notation: {key: notation}
+    onomasia.audiences: {key: audiences}
+```
+
+Only a text bound to a glossary or a notation is read and checked. Before its prose is matched, the regions of the kinds listed under `texts.masked` are masked through Merismos: by default its frontmatter, its code, its mathematics and the destinations of its links. A wikilink without an alias displays its destination, so that destination stays prose. No form spans a masked region. The checks of texts report eight kinds of issue:
+
+| Check | Issue |
+| --- | --- |
+| `forbidden-form` | a form forbidden by a lexical rule binding the text, outside the exceptions of the rule |
+| `frame-mismatch` | a term written outside every frame admitted for it |
+| `term-status` | a term whose status reports its use in texts, with its replacement |
+| `entry-status` | the macro of a notation entry whose status reports its use, with the macro of its replacement |
+| `unknown-macro` | a macro under the reserved prefix that the bound notations do not define |
+| `raw-printed-form` | the printed body of an entry, holding a control sequence and taking no parameter, written instead of its macro |
+| `unresolved-text-binding` | a binding naming a glossary or a notation that no record holds, reported at its declaration |
+| `unreadable-text` | a text that cannot be read as UTF-8 |
+
+Each issue of a text prints its line after the resource, as in `notes/a.md:6: error forbidden-form: …`. The status of a term, an entry or a rule caps the severity of its issue below the severity of its check, as its [effect on texts](formats.md#^statuses) states. A declaration that Anagraphe cannot read, and a text that the Anagraphe configuration requires to be bound, are reported by the check of Anagraphe. ^texts
+
 ## Building the outputs
 
-To print its symbols, a consumer writes the outputs declared under the key `build` of its configuration. The command `onomasia build` runs the checks of `onomasia check`, then writes the outputs:
+To print its symbols, a consumer writes the outputs declared under the key `build` of its configuration. The command `onomasia build` runs the checks of the records and of the outputs, then writes the outputs:
 
 ```console
 onomasia build --root path/to/vault

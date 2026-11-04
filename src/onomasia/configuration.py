@@ -2,7 +2,7 @@
 Configuration of a consumer, `onomasia.yml`: where its records live, its vocabularies, and the
 severity of each check.
 
-The file declares its `schema_version`, then five sections, each optional:
+The file declares its `schema_version`, then six sections, each optional:
 
 - `records`, the globs of the records of each format, relative to the root, and the paths
   excluded from every glob;
@@ -11,7 +11,8 @@ The file declares its `schema_version`, then five sections, each optional:
 - `typography`, the placeholder of the base in the templates of typographic classes, and the
   derivation of macro names;
 - `build`, the input documents read by the build, and the outputs that it writes;
-- `checks`, the severity of each check that the consumer changes: `error`, `warning` or `off`.
+- `checks`, the severity of each check that the consumer changes: `error`, `warning` or `off`;
+- `texts`, the texts checked against their glossaries and notations, and how they are read.
 
 Classes
 -------
@@ -44,6 +45,7 @@ import yaml
 from .errors import ConfigurationError
 from .issues import Severity, default_severities, packaged_defaults
 from .reading import Fields
+from .texts.prose import kinds_problem
 from .records.model import RecordKind
 
 SCHEMA_VERSION = 1
@@ -62,9 +64,16 @@ class StatusRole:
     ----------
     requires_replacement : bool
         Whether an entry of this status must name the entry replacing it.
+    term_in_texts : Severity
+        Severity of a use, in a text, of a term or a notation entry of this status; `off` when
+        such a use is admitted.
+    rule_in_texts : Severity
+        Highest severity of a lexical rule of this status, `off` for a rule that binds no text.
     """
 
     requires_replacement: bool
+    term_in_texts: Severity = Severity.OFF
+    rule_in_texts: Severity = Severity.ERROR
 
 
 @dataclass(frozen=True)
@@ -185,6 +194,42 @@ class Build:
 
 
 @dataclass(frozen=True)
+class Texts:  # pylint: disable=too-many-instance-attributes
+    """
+    Texts of a consumer checked against the glossaries and the notations bound to them.
+
+    Attributes
+    ----------
+    anagraphe : Path
+        Configuration of Anagraphe, whose section `bindings` names the key of each role read by
+        Onomasia.
+    paths : tuple[str, ...]
+        Globs of the texts, relative to the root.
+    exclude : tuple[str, ...]
+        Globs or folders left out of the texts.
+    scope_table : Path | None
+        Scope table relating the audiences, None when each audience relates to itself only.
+    masked : tuple[str, ...]
+        Kinds of Merismos masked before prose is matched, such as code and mathematics.
+    math : tuple[str, ...]
+        Kinds of Merismos holding the mathematics checked against the notations.
+    determiners : tuple[str, ...]
+        Words admitted before the slot of a frame.
+    syntax : Path | None
+        Syntax file of Merismos for the Markdown dialect, None for the packaged Obsidian syntax.
+    """
+
+    anagraphe: Path
+    paths: tuple[str, ...]
+    exclude: tuple[str, ...] = ()
+    scope_table: Path | None = None
+    masked: tuple[str, ...] = ()
+    math: tuple[str, ...] = ()
+    determiners: tuple[str, ...] = ()
+    syntax: Path | None = None
+
+
+@dataclass(frozen=True)
 class Configuration:
     """
     Resolved configuration of one consumer.
@@ -206,6 +251,8 @@ class Configuration:
         Inputs and outputs of the build.
     severities : Mapping[str, Severity]
         Severity of each check of the catalog.
+    texts : Texts | None
+        Texts to check, None when the consumer checks none.
     """
 
     root: Path
@@ -215,6 +262,20 @@ class Configuration:
     typography: Typography
     build: Build
     severities: Mapping[str, Severity]
+    texts: "Texts | None" = None
+
+
+def _severity(fields: Fields | None, key: str, default: Severity) -> Severity:
+    """Read an optional severity, `error`, `warning` or `off`, or the default when absent."""
+    if fields is None or not fields.present(key):
+        return default
+    value = fields.value(key)
+    if value is False:  # YAML 1.1 reads a bare `off` as false.
+        value = Severity.OFF.value
+    try:
+        return Severity(value)
+    except ValueError as error:
+        raise fields.error(key, "expected error, warning or off") from error
 
 
 def _vocabulary(fields: Fields) -> Vocabulary:
@@ -225,7 +286,14 @@ def _vocabulary(fields: Fields) -> Vocabulary:
         if not isinstance(data, Mapping):
             raise fields.error(f"statuses.{name}", "expected a mapping")
         role = Fields(data, f"statuses.{name}", "vocabulary")
-        statuses[name] = StatusRole(requires_replacement=role.boolean("requires_replacement"))
+        in_texts = role.section("in_texts")
+        statuses[name] = StatusRole(
+            requires_replacement=role.boolean("requires_replacement"),
+            term_in_texts=_severity(in_texts, "term", Severity.OFF),
+            rule_in_texts=_severity(in_texts, "rule", Severity.ERROR),
+        )
+        if in_texts is not None:
+            in_texts.finish()
         role.finish()
     default_status = fields.string("default_status")
     if default_status not in statuses:
@@ -328,6 +396,40 @@ def _build(root: Path, fields: Fields | None) -> Build:
     return build
 
 
+def _path(root: Path, fields: Fields, key: str) -> Path:
+    """Read a path relative to the root, which must name a file."""
+    path = root / fields.string(key)
+    if not path.is_file():
+        raise fields.error(key, f"names no file: {path}")
+    return path
+
+
+def _texts(root: Path, fields: Fields | None) -> Texts | None:
+    """Read the texts section, its unset reading keys taken from the packaged defaults."""
+    if fields is None:
+        return None
+    packaged = _packaged_section("texts")
+    texts = Texts(
+        anagraphe=_path(root, fields, "anagraphe"),
+        paths=fields.strings("paths"),
+        exclude=fields.strings("exclude", default=()),
+        scope_table=_path(root, fields, "scope_table") if fields.present("scope_table") else None,
+        masked=fields.strings("masked", default=packaged.strings("masked")),
+        math=fields.strings("math", default=packaged.strings("math")),
+        determiners=fields.strings("determiners", default=packaged.strings("determiners")),
+        syntax=_path(root, fields, "syntax") if fields.present("syntax") else None,
+    )
+    fields.finish()
+    for key, globs in (("paths", texts.paths), ("exclude", texts.exclude)):
+        for glob in globs:
+            if glob.startswith("/") or ".." in glob.split("/"):
+                raise fields.error(key, f"the glob {glob} leaves the root")
+    problem = kinds_problem((*texts.masked, *texts.math), texts.syntax)
+    if problem is not None:
+        raise fields.error("masked", problem)
+    return texts
+
+
 def _resolve(root: Path, resource: str, data: Mapping[str, object], origin: str) -> Configuration:
     """Resolve a configuration mapping, the packaged vocabulary standing for an absent section."""
     fields = Fields(data, "", origin)
@@ -342,6 +444,7 @@ def _resolve(root: Path, resource: str, data: Mapping[str, object], origin: str)
         typography=_typography(fields.section("typography") or _packaged_section("typography")),
         build=_build(root, fields.section("build")),
         severities=_severities(fields.section("checks")),
+        texts=_texts(root, fields.section("texts")),
     )
     fields.finish()
     return configuration

@@ -7,12 +7,12 @@ aliases:
 ---
 # Contracts
 
-The contracts of Onomasia fix the documents exchanged between Onomasia and the other tools. Onomasia writes three documents and three serializations of its macros. Onomasia reads one document, the denotes targets, and specifies a second one, the scope table, for the checks of texts to come. The fields of each document are defined by a schema in the package folder `data/schemas`. This specification states their meaning. The [decision on formats and contracts](adr/formats-and-contracts.md) records the reason for each choice.
+The contracts of Onomasia fix the documents exchanged between Onomasia and the other tools. Onomasia writes three documents and three serializations of its macros. Onomasia reads two documents: the denotes targets for its macros, and the scope table for the checks of texts. The fields of each document are defined by a schema in the package folder `data/schemas`. This specification states their meaning. The [decision on formats and contracts](adr/formats-and-contracts.md) records the reason for each choice.
 
 | Contract | Producer | Consumers | Schema |
 | --- | --- | --- | --- |
 | `onomasia:denotes-targets@1` | Gnomon | Onomasia | `denotes-targets.schema.yml` |
-| `onomasia:scope-table@1` | Ekthesis | the checks of texts of Onomasia, not yet implemented | `scope-table.schema.yml` |
+| `onomasia:scope-table@1` | Ekthesis | the checks of texts of Onomasia | `scope-table.schema.yml` |
 | `onomasia:macro-table@1` | Onomasia | Gnomon | `macro-table.schema.yml` |
 | `onomasia:macro-lookup@1` | Onomasia | the views of Gnomon, the documents rendered by Ekthesis | `macro-lookup.schema.yml` |
 | `onomasia:term-table@1` | Onomasia | Hermeneia | `term-table.schema.yml` |
@@ -37,13 +37,13 @@ The *denotes targets* list the [units](formats.md#^meaning) whose arguments Onom
 
 A unit absent from every document takes no argument, and passes unreported. For example, an entry designating the block anchor of a note takes no argument. When several documents name one unit, the later document wins. The producer gives a variadic unit the arity 1, since its items travel in one argument; Onomasia copies the arity without checking it. ^denotes-targets
 
-The *scope table* maps each audience to its `ancestors` and its `descendants`. Ekthesis decides which audiences are related, and the checks of texts will apply the table as written. A lexical rule scoped to an audience will bind a text when that audience appears in the row of the audience of the text, in three cases:
+The *scope table* maps each audience to its `ancestors` and its `descendants`. Ekthesis decides which audiences are related, and the checks of texts apply the table as written. A lexical rule scoped to an audience binds a text when that audience appears in the row of the audience of the text, in three cases:
 
 - the rule audience is the audience of the text;
 - the rule audience is an ancestor of the audience of the text;
 - the rule audience is a descendant of the audience of the text.
 
-An audience absent from the table relates to itself only. No key of the configuration names the scope table yet. ^scope-table
+An audience absent from the table relates to itself only. The key `texts.scope_table` of the [configuration](configuration.md) names the table. ^scope-table
 
 ## Macro table
 

@@ -6,7 +6,7 @@ Defines commands available via `python -m onomasia` or `onomasia` if installed a
 Commands
 --------
 info : Display diagnostic information.
-check : Run every check of a build, without writing the outputs.
+check : Run every check of a build, and the checks of texts, without writing the outputs.
 build : Check the records, then write the declared outputs.
 
 See Also
@@ -41,7 +41,7 @@ def cli_check(
         None, "--config", help="Configuration file, onomasia.yml at the root by default."
     ),
 ) -> None:
-    """Run every check of a build without writing; exit 1 when an error is reported."""
+    """Run every check of a build and of the texts without writing; exit 1 on an error."""
     try:
         configuration = load_configuration(root, config or root / CONFIGURATION_FILE)
         issues = check_records(configuration)
@@ -78,6 +78,8 @@ def _print(issues: list[Issue]) -> None:
     """Print each issue on one line, then the counts of errors and warnings."""
     for issue in issues:
         location = f"{issue.resource}#{issue.pointer}" if issue.pointer else issue.resource
+        if issue.line is not None:
+            location = f"{location}:{issue.line}"
         typer.echo(f"{location}: {issue.severity.value} {issue.check}: {issue.message}")
     errors = sum(issue.severity is Severity.ERROR for issue in issues)
     typer.echo(f"{errors} errors, {len(issues) - errors} warnings")

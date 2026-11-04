@@ -3,6 +3,7 @@
 from onomasia.issues import default_severities
 
 import test_records
+import test_texts
 import test_typography
 
 SHOWN_WITHOUT_PLANTING = {"undeclared-entry"}
@@ -15,5 +16,7 @@ def test_every_check_of_the_catalog_is_planted() -> None:
         set(test_records.PLANTED)
         | set(test_typography.PLANTED)
         | {test_typography.UNRESOLVED_OUTPUT}
+        | set(test_texts.PLANTED)
+        | test_texts.TEXT_CHECKS
     )
     assert set(default_severities()) == planted | SHOWN_WITHOUT_PLANTING

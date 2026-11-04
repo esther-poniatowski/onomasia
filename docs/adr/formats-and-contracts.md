@@ -59,7 +59,7 @@ The [record formats](../formats.md), the [configuration](../configuration.md) an
 
 **A build writing all its outputs or none.** A build reporting an error writes no output, and every other build replaces each output in one step. A consumer lowering the severity of a check accepts that the build skips an output that cannot be built, and writes the others. ^atomic-build
 
-**Printed forms unique within a composed notation, except declared overloads.** The check `body-collision` reports two entries of one composed notation printing the same body, unless one entry names the other under [`overloads`](../formats.md#^overloads). The check `unneeded-overload` reports a declaration that no shared body justifies. A text binds one composed notation, so this check covers every pair of printed forms usable in one text. ^unique-bodies
+**Printed forms unique within a composed notation, except declared overloads.** The check `body-collision` reports two entries of one composed notation printing the same body, unless one entry names the other under [`overloads`](../formats.md#^overloads). The check `unneeded-overload` reports a declaration that no shared body justifies. The notations bound to a text compose into one macro table, checked with the text, so this check covers every pair of printed forms usable in one text. ^unique-bodies
 
 **Checks of texts after Anagraphe.** Onomasia checks records and builds outputs now. Onomasia matches terms in prose and symbols in mathematics only once Anagraphe resolves binding keys. ^texts-after-anagraphe
 
@@ -175,7 +175,5 @@ The [record formats](../formats.md), the [configuration](../configuration.md) an
 
 ## Open points
 
-- The checks of texts, reading the regions of Merismos and the binding keys of Anagraphe.
-- The key of the configuration naming the scope table.
-- The check of a text using a printed form absent from the notation bound to it.
+- The checks of texts, now decided by the [decision on text checks](text-checks.md). That decision keeps the classification of raw TeX symbols open.
 - The migration of the records of Geonexus and Mixture to the formats of Onomasia.

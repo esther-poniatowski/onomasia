@@ -40,6 +40,22 @@ class Severity(Enum):
     WARNING = "warning"
     OFF = "off"
 
+    def capped(self, cap: "Severity | None") -> "Severity":
+        """
+        Return the lower of this severity and a cap, `off` being the lowest.
+
+        Examples
+        --------
+        >>> Severity.ERROR.capped(Severity.WARNING), Severity.WARNING.capped(None)
+        (<Severity.WARNING: 'warning'>, <Severity.WARNING: 'warning'>)
+        """
+        if cap is None:
+            return self
+        return min(self, cap, key=_RANKS.__getitem__)
+
+
+_RANKS = {Severity.OFF: 0, Severity.WARNING: 1, Severity.ERROR: 2}
+
 
 @dataclass(frozen=True)
 class Issue:
@@ -58,6 +74,8 @@ class Issue:
         JSON Pointer of the offending value in the record, empty for the whole record.
     message : str
         Statement of the defect.
+    line : int | None
+        Line of the defect in a text, counted from 1; None for an issue of a record.
     """
 
     check: str
@@ -65,6 +83,7 @@ class Issue:
     resource: str
     pointer: str
     message: str
+    line: int | None = None
 
 
 @dataclass
@@ -81,9 +100,18 @@ class IssueSink:
     severities: Mapping[str, Severity]
     issues: list[Issue] = field(default_factory=list)
 
-    def report(self, check: str, resource: str, pointer: str, message: str) -> None:
+    def report(  # pylint: disable=too-many-arguments,too-many-positional-arguments
+        self,
+        check: str,
+        resource: str,
+        pointer: str,
+        message: str,
+        line: int | None = None,
+        cap: Severity | None = None,
+    ) -> None:
         """
-        Record an issue under the severity of its check, unless the check is off.
+        Record an issue under the severity of its check, lowered to `cap` when one is given,
+        unless the resulting severity is off.
 
         Raises
         ------
@@ -91,11 +119,11 @@ class IssueSink:
             If the check is absent from the catalog, which is a defect of Onomasia.
         """
         try:
-            severity = self.severities[check]
+            severity = self.severities[check].capped(cap)
         except KeyError as error:
             raise OnomasiaError(f"check {check!r} is absent from the catalog") from error
         if severity is not Severity.OFF:
-            self.issues.append(Issue(check, severity, resource, pointer, message))
+            self.issues.append(Issue(check, severity, resource, pointer, message, line))
 
     def has_errors(self) -> bool:
         """Whether an issue of severity `error` was reported."""

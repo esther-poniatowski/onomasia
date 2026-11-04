@@ -50,14 +50,14 @@ A glossary, `onomasia:glossary@1`, holds two sections:
 - `terms`, the admitted terms;
 - `rules`, the lexical rules, each forbidding written forms.
 
-A written form is either a literal, matched at word boundaries, or a regular expression written as `{regex: …}`. A term requires a label under `label` and a gloss under `gloss`, and admits the following optional fields:
+A written form is either a literal, matched as whole words, or a regular expression written as `{regex: …}`, as the [matching of forms](#^matching) states. A term requires a label under `label` and a gloss under `gloss`, and admits the following optional fields:
 
 | Field | Content |
 | --- | --- |
 | `forms` | the other written forms of the term |
 | `source` | the origin of the term |
 | `case_sensitive` | true when the forms of the term keep their case |
-| `frames` | the constructions admitted for the term, in which `~` stands for its label or one of its forms |
+| `frames` | the constructions admitted for the term, written in the [grammar of frames](#^frames) |
 | `alternatives` | other names of the concept, each with its label and, under `when`, the suited contexts of the vocabulary |
 | `relations` | for each relation of the vocabulary, the terms related to the term |
 | `status`, `replaced_by` | the [status](#^statuses) of the term, and its replacement |
@@ -75,7 +75,19 @@ A rule also admits three optional fields: `severity`, `status` and `case_sensiti
 - `audiences`, the audiences of the texts bound by the rule; a rule without `audiences` binds every text bound to its glossary;
 - `exceptions`, the forms inside which a match of a forbidden form is admitted.
 
-The checks of texts are not yet part of Onomasia, so no current check reads these two fields. The check `rule-shadows-term` reports a rule forbidding a literal form of a term of the same composed glossary. ^lexical-rules
+An audience of a rule binds a text when the [scope table](contracts.md#^scope-table) relates it to an audience of the text, and each audience relates to itself without a table. The check `rule-shadows-term` reports a rule forbidding a literal form of a term of the same composed glossary. ^lexical-rules
+
+A literal form matches as whole words: no letter, digit, underscore or hyphen touches it on either side, so `regime` matches neither `regimes` nor `learning-regime`. The words of a literal form are separated in a text by spaces, non-breaking spaces included, holding one line break at most, so a form never spans two paragraphs, nor a masked region of the text. A regular expression is used as written, a leading global flag such as `(?i)` applying to the form alone. The check `invalid-form` reports an expression that does not compile, names a group, holds a backreference, or matches the empty string. A form ignores case unless its term or its rule sets `case_sensitive`. Among the literal forms of a term, its label included, the longest is tried first, so `gain field` wins over `gain`. ^matching
+
+A frame is written as tokens separated by spaces:
+
+- `~` stands for the term in any of its forms, exactly once and outside every optional part;
+- a word is matched as a literal form;
+- `[ … ]` holds an optional part, which may nest;
+- `{a|b}` is a slot holding one of the terms named, each in any of its forms and under its own case, possibly after one determiner of the [configuration](configuration.md);
+- `{}` is a slot holding any one word, possibly after one determiner.
+
+For example, `~ of {input|stimulus} [in {}]` admits "gain of the input in V1" and "gain of a stimulus". The same frame rejects "gain of the noisy input". A frame is compiled into the text before the term and the text after it, so two occurrences admitted by one frame may share words, as in "the gain of the gain of noise". The check `invalid-frame` reports a frame holding no or several marks `~`, an unbalanced bracket or brace, a mark inside an optional part, a slot naming an empty term, or a slot naming no term of the glossary. The checks of texts leave a malformed frame out, and a term whose frames are all malformed is checked as if it declared none. ^frames
 
 ## Notations
 
@@ -110,17 +122,26 @@ The checks `unresolved-overlay` and `unknown-override` report an overlay naming 
 
 ## Statuses
 
-Each term, rule and entry may declare a status among the statuses of the vocabulary. An absent status stands for the default status. A status may require a replacement. Under such a status, a term or an entry names its replacement under `replaced_by`. A lexical rule names its replacements under `replace_with` in every case. ^statuses
+Each term, rule and entry may declare a status among the statuses of the vocabulary. An absent status stands for the default status. A status may require a replacement. Under such a status, a term or an entry names its replacement under `replaced_by`. A lexical rule names its replacements under `replace_with` in every case.
+
+A status also states its effect on texts, under `in_texts` in the [configuration](configuration.md); each severity caps the severity of the check that reports the use:
+
+- `term`, the severity of a use of a term or of the macro of an entry of the status, `off` when such a use is admitted;
+- `rule`, the highest severity of a lexical rule of the status, `off` for a rule binding no text.
+
+A status declaring no `in_texts` admits the use of its terms and caps no rule, as `term: off` and `rule: error` do. The packaged statuses report a deprecated term as an error and a candidate term as a warning, lower a candidate rule to a warning, and make a deprecated rule bind no text. ^statuses
 
 ## Checks of the records
 
-The packaged file `data/defaults.yml` lists every check, with its default severity and its gloss. The commands `onomasia check` and `onomasia build` run every check of the catalog, and only the build writes the outputs. The first group of checks reads the records, their compositions and the overlays. The second group reads the outputs declared by the configuration:
+The packaged file `data/defaults.yml` lists every check, with its default severity and its gloss. The checks fall in three groups. The command `onomasia build` runs the first two and writes the outputs. The command `onomasia check` runs all three and writes nothing, so a consumer whose check passes has a build that passes. The first group of checks reads the records, their compositions and the overlays. The second group reads the outputs declared by the configuration:
 
 - the checks of each macro table built for an output: `reserved-prefix`, `macro-name-collision`, `ambiguous-target`, `too-many-parameters`, `missing-separator` and `macro-cycle`;
 - the check of the input documents, `invalid-contract`;
 - the check of the outputs themselves, `unresolved-output`.
 
 The checks of the outputs see only the notations named by an output, so a notation named by no output escapes them.
+
+The third group reads the texts declared by the configuration, against the records bound to each text. The [guide](guide.md#^texts) lists these checks.
 
 A check of records reports each issue at one record, with the [JSON Pointer](https://www.rfc-editor.org/rfc/rfc6901) of the offending value:
 

@@ -114,15 +114,48 @@ checks:
   unresolved-output:
     severity: error
     gloss: an output of the build names a notation, an overlay or a glossary that no record holds
+  invalid-form:
+    severity: error
+    gloss: a written form given as a regular expression does not compile, names a group, holds a backreference, or matches the empty string
+  invalid-frame:
+    severity: error
+    gloss: a frame holds no or several term marks, an unbalanced bracket or brace, a mark inside an optional part, or a slot naming an empty term or no term
+  forbidden-form:
+    severity: error
+    gloss: a text writes a form forbidden by a lexical rule that binds it, outside the exceptions of the rule
+  frame-mismatch:
+    severity: warning
+    gloss: a text writes a term outside every frame admitted for it
+  term-status:
+    severity: error
+    gloss: a text writes a term whose status reports its use in texts
+  entry-status:
+    severity: error
+    gloss: a text calls the macro of a notation entry whose status reports its use in texts
+  unknown-macro:
+    severity: error
+    gloss: a text calls a macro under the reserved prefix that its bound notations do not define
+  raw-printed-form:
+    severity: warning
+    gloss: a text writes the printed body of a notation entry instead of calling its macro
+  unresolved-text-binding:
+    severity: error
+    gloss: a binding of a text names a glossary or a notation that no record holds
+  unreadable-text:
+    severity: error
+    gloss: a text cannot be read as UTF-8
 
 # Vocabularies read by the checks, replaced as a whole by the vocabularies of a consumer.
 vocabulary:
   # Each status may require a replacement, named by the key replaced_by of its entry.
+  # Each status may also state, under in_texts, the severity of a use of a term or an entry of the
+  # status in a text (term, off by default), and the highest severity of a rule of the status
+  # (rule, error by default).
   statuses:
-    candidate: {requires_replacement: false}
+    candidate: {requires_replacement: false, in_texts: {term: warning, rule: warning}}
     in-use: {requires_replacement: false}
     ratified: {requires_replacement: false}
-    deprecated: {requires_replacement: true}
+    deprecated: {requires_replacement: true, in_texts: {term: error, rule: "off"}}
   # Status of an entry that declares none.
   default_status: in-use
   # Dimensions of the contexts that an alternative suits, each with its admitted values.
@@ -143,3 +176,13 @@ typography:
   digit_names: [Zero, One, Two, Three, Four, Five, Six, Seven, Eight, Nine]
   # Parameters of one macro, as TeX admits them.
   maximum_parameters: 9
+
+# Reading of the texts, for the keys that the section texts of a consumer leaves out.
+texts:
+  # Kinds of Merismos masked before prose is matched: what is not prose. The destination of a
+  # wikilink without an alias stays prose, since the link displays it.
+  masked: [frontmatter, fenced-code, indented-code, inline-code, display-math, inline-math, link-destination]
+  # Kinds of Merismos holding the mathematics checked against the notations.
+  math: [inline-math, display-math]
+  # Words admitted, one at most, before the slot of a frame.
+  determiners: [the, a, an, this, that, these, those, each, every, its, their]

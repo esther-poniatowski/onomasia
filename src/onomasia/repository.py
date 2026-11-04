@@ -94,10 +94,35 @@ class FileRecordSource:
 
     def _excluded(self, relative: str) -> bool:
         """Whether a path matches an exclusion glob, or lies under an excluded folder."""
-        return any(
-            fnmatch(relative, pattern) or relative.startswith(pattern.rstrip("/") + "/")
-            for pattern in self._locations.exclude
-        )
+        return excluded(relative, self._locations.exclude)
+
+
+def excluded(relative: str, patterns: Iterable[str]) -> bool:
+    """
+    Whether a relative path matches an exclusion glob, or lies under an excluded folder.
+
+    Examples
+    --------
+    >>> excluded("archive/a.md", ["archive"]), excluded("notes/a.md", ["archive", "*.tmp"])
+    (True, False)
+    """
+    return any(
+        fnmatch(relative, pattern) or relative.startswith(pattern.rstrip("/") + "/")
+        for pattern in patterns
+    )
+
+
+def matched_files(root: Path, patterns: Iterable[str], exclude: Iterable[str]) -> list[str]:
+    """Return the files matched by globs under a root, relative to it and sorted, excluded ones
+    left out."""
+    exclusions = tuple(exclude)
+    found = {
+        path.relative_to(root).as_posix()
+        for pattern in patterns
+        for path in root.glob(pattern)
+        if path.is_file()
+    }
+    return sorted(relative for relative in found if not excluded(relative, exclusions))
 
 
 class _UniqueKeyLoader(yaml.SafeLoader):  # pylint: disable=too-many-ancestors
