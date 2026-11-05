@@ -31,7 +31,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import Mapping, Sequence
+from typing import Iterable, Mapping, Sequence
 
 from ..composition import Composer, Composition, Visible
 from ..configuration import StatusRole, Texts, Typography, Vocabulary
@@ -62,6 +62,11 @@ def excerpt(text: str) -> str:
     """
     quoted = " ".join(text.replace("\x00", " ").split())
     return quoted if len(quoted) <= EXCERPT else quoted[: EXCERPT - 1] + "…"
+
+
+def _spans(patterns: Iterable[re.Pattern[str]], text: str) -> list[tuple[int, int]]:
+    """Return the span of every match of the patterns in a text."""
+    return [match.span() for pattern in patterns for match in pattern.finditer(text)]
 
 
 @dataclass(frozen=True)
@@ -369,21 +374,22 @@ class TextChecker:  # pylint: disable=too-many-instance-attributes
         assert isinstance(rule, LexicalRule)
         if rule.audiences is not None and not rule.audiences & audiences:
             return
-        role = self._role(rule.status)
-        cap = Severity(rule.severity) if rule.severity else Severity.ERROR
-        cap = cap.capped(role.rule_in_texts if role is not None else None)
+        cap = self._rule_cap(rule)
         matching = self._rule_matching(identifier, visible)
         if cap is Severity.OFF or matching.forms is None:
             return
-        excepted = [
-            match.span()
-            for pattern in matching.exceptions
-            for match in pattern.finditer(prose.prose)
+        found = [
+            match for match in matching.forms.finditer(prose.prose) if match.end() > match.start()
         ]
+        if not found:
+            return
+        # The exceptions are searched only in a text holding a forbidden form, since most texts
+        # hold none and an exception may cost far more than the forms.
+        excepted = _spans(matching.exceptions, prose.prose)
         advice = " or ".join(self._replacement(visible, item) for item in rule.replacements)
-        for match in matching.forms.finditer(prose.prose):
+        for match in found:
             start, end = match.span()
-            if end == start or any(first <= start and end <= last for first, last in excepted):
+            if any(first <= start and end <= last for first, last in excepted):
                 continue
             self._sink.report(
                 "forbidden-form",
@@ -394,6 +400,12 @@ class TextChecker:  # pylint: disable=too-many-instance-attributes
                 prose.line(start),
                 cap,
             )
+
+    def _rule_cap(self, rule: LexicalRule) -> Severity:
+        """Return the severity of a match of a rule: its own, capped by the effect of its status."""
+        role = self._role(rule.status)
+        cap = Severity(rule.severity) if rule.severity else Severity.ERROR
+        return cap.capped(role.rule_in_texts if role is not None else None)
 
     def _replacement(self, visible: Visible, replacement: Replacement) -> str:
         """Return the text of a replacement, its term or its instruction, and its condition."""
