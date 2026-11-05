@@ -3,7 +3,7 @@ tags:
   - decision
 status: accepted
 created: 2026-11-04
-revised: 2026-11-04
+revised: 2026-11-05
 index: "[Architecture decisions](docs/adr/_index.md)"
 aliases:
   - Text checks decision
@@ -23,7 +23,7 @@ The [decision on designation and typography](https://github.com/esther-poniatows
 
 **Bindings through Anagraphe.** Onomasia reads three roles, `onomasia.glossary`, `onomasia.notation` and `onomasia.audiences`, through the [bindings of Anagraphe](https://github.com/esther-poniatowski/anagraphe/blob/main/docs/guide/bindings.md), each merging by `override`. A role absent from the Anagraphe configuration binds no text. ^bindings
 
-**Prose and mathematics through Merismos.** Before prose is matched, the regions of the kinds declared under `texts.masked` are filled with a character that is no space, so no form spans them. The destination of a wikilink without an alias stays prose, since the link displays it. The container prefixes of quotations and the markers of callouts are blanked with spaces. The mathematics is read from the content of each region of the kinds declared under `texts.math`. ^regions
+**Prose and mathematics through Merismos.** Before prose is matched, the regions of the kinds declared under `texts.masked` are filled with the character U+0000. This character is no space, so no form spans a masked region, and an expression names a masked region by it. The destination of a wikilink without an alias stays prose, since the link displays it. The container prefixes of quotations and the markers of callouts are blanked with spaces. The mathematics is read from the content of each region of the kinds declared under `texts.math`. ^regions
 
 **Whole words, within one paragraph.** A literal form matches when no letter, digit, underscore or hyphen touches it, and its words are separated by spaces holding one line break at most. The longest literal form of a term is tried first, and a leading global flag of a regular expression applies to the form alone. ^matching
 
@@ -35,11 +35,11 @@ The [decision on designation and typography](https://github.com/esther-poniatows
 
 **Mathematics checked at the level of macros.** The mathematics of a text is checked for three uses:
 
-- a macro of an entry whose status reports its use;
+- a macro of an entry whose status reports its use, or the printed body of that entry when the body takes no parameter;
 - a macro under the reserved prefix, defined by none of the bound notations;
-- the printed body of an entry, written instead of its macro, when the body holds a control sequence and takes no parameter.
+- the printed body of an entry whose use is admitted, written instead of its macro, when the body holds a control sequence and takes no parameter.
 
-One issue names every macro printing a body, and the longest body wins where one body opens another. The body of an entry whose use is reported is not sought.
+One issue names every macro printing a body, and the longest body wins where one body opens another. A body opening on a letter matches only where no letter or backslash precedes it. An issue reporting the body of an entry names the macro of the replacement and the body printed by that macro, so a text written in raw TeX finds its replacement too.
 
 The notations bound to a text compose into one macro table, whose defects are reported once per combination. ^macros
 
@@ -67,6 +67,21 @@ The notations bound to a text compose into one macro table, whose defects are re
 | The old classification of raw TeX: fonts conflicting with a registered symbol, unregistered symbols recurring in two notes | Covers texts written without macros | Noisy, and its token grammar holds known artefacts; deferred until a corpus written with macros shows the need |
 | **Checks at the level of macros** | Each finding names a macro of the bound notations | Taken |
 
+**Printed bodies of reported entries.**
+
+| Option | Benefit | Reason it is not taken |
+| --- | --- | --- |
+| The macro of a reported entry only | Every issue names a macro | A text written in raw TeX, such as the notes of Mixture with 224 uses of deprecated symbols, has no reported use |
+| **The macro and the printed body of a reported entry** | A deprecated symbol is reported in every text, with its replacement | Taken |
+
+**Masked regions in an exception.**
+
+| Option | Benefit | Reason it is not taken |
+| --- | --- | --- |
+| Exceptions blind to masked regions | No character of the reading becomes part of the format | An exception cannot admit a form followed or preceded by a formula, such as `population $p$` |
+| Mathematics left unmasked for lexical rules | Exceptions read the TeX | Forbidden forms would match inside formulas, such as a macro named `\response` |
+| **A documented placeholder, U+0000** | An exception names a formula by `\x00` | Taken |
+
 **Grammar of frames.**
 
 | Option | Benefit | Reason it is not taken |
@@ -87,7 +102,7 @@ The notations bound to a text compose into one macro table, whose defects are re
 Beyond the decisions above, five readings of the old checker change, each by a format or a constraint of Onomasia:
 
 - an exception of a rule is a form containing the forbidden match, so the old tests `neighbours` and the window of the paragraph are gone; an exception of the kind `neighbours` becomes a regular expression;
-- an exception relying on the blanks left by masked mathematics, such as `populations?\s{2,}\S`, no longer admits its match, since a masked region holds no space;
+- an exception relying on the blanks left by masked mathematics, such as `populations?\s{2,}\S`, no longer admits its match, since a masked region holds no space; such an exception names the placeholder `\x00` instead;
 - a text bound to no value is reported by the check of Anagraphe for the files that its condition `required` selects, not by Onomasia;
 - the advice of a deprecated symbol names the macro of its replacement only, no longer the other symbols of the same term;
 - a printed body is matched exactly, with no tolerance of spaces inside it.

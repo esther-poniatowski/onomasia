@@ -436,6 +436,39 @@ def test_raw_bodies_report_the_longest_body_and_every_overload(tmp_path: Path) -
     ]
 
 
+def test_raw_body_of_a_reported_entry_is_reported_with_its_replacement(tmp_path: Path) -> None:
+    notation = _notation(
+        old={
+            "gloss": "g",
+            "body": "s_k",
+            "name": "oldS",
+            "status": "deprecated",
+            "replaced_by": "w",
+        },
+    )
+    text = "Math: $x_{\\mathrm{old}} + s_k + \\cos_k$.\n"
+    root = _consumer(tmp_path, {"records/base.notation.yml": notation, "notes/a.md": text})
+    assert [m for m in _messages(root) if "prints the entry" in m] == [
+        "'x_{\\mathrm{old}}' prints the entry old-x of status deprecated; write \\Wm, "
+        "printing '\\boldsymbol{W}'",
+        "'s_k' prints the entry old of status deprecated; write \\Wm, printing '\\boldsymbol{W}'",
+    ]
+
+
+def test_exception_reads_masked_mathematics_as_its_placeholder(tmp_path: Path) -> None:
+    glossary = yaml.safe_load(yaml.safe_dump(GLOSSARY))
+    glossary["rules"] = {
+        "no-population": _rule(
+            ["population"],
+            exceptions=[{"regex": "population \\x00+", "description": "a named population"}],
+        )
+    }
+    text = "The population $p$ grows.\nA population grows.\n"
+    root = _consumer(tmp_path, {"records/base.glossary.yml": glossary, "notes/a.md": text})
+    found = [issue[1] for issue in _issues(root) if issue[2] == "forbidden-form"]
+    assert found == [2]
+
+
 @pytest.mark.parametrize(
     ("texts", "message"),
     [

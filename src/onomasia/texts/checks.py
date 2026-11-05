@@ -13,10 +13,14 @@ The prose of the text is checked against the glossaries:
 The mathematics of the text is checked against the macro table of its notations, composed in the
 order of the binding:
 
-- a macro of an entry whose status reports its use is reported, with the macro of its replacement;
+- a macro of an entry whose status reports its use, or its printed body taking no parameter, is
+  reported, with the macro of its replacement and the body that it prints;
 - a macro under the reserved prefix that the notations do not define is reported;
-- the printed body of an entry, written instead of its macro, is reported once with every macro
-  printing it, the longest body winning where one body opens another.
+- the printed body of an entry whose use is admitted, written instead of its macro, is reported
+  once with every macro printing it, when the body takes no parameter and holds a control
+  sequence;
+- among the bodies sought, the longest wins where one body opens another, and a body opening on a
+  letter is matched only where no letter or backslash precedes it.
 
 The status of an entry or a rule lowers the severity of its issue, through the vocabulary of the
 consumer. Each issue is reported at the line of the text holding it.
@@ -78,6 +82,7 @@ class _Notation:
     macros: Mapping[str, Macro]
     bodies: re.Pattern[str] | None
     printing: Mapping[str, tuple[str, ...]]
+    reported: Mapping[str, tuple[Macro, ...]]
 
 
 @dataclass(frozen=True)
@@ -230,10 +235,15 @@ class TextChecker:  # pylint: disable=too-many-instance-attributes
             for composition in compositions:
                 entries.update(composition.sections.get("entries", {}))
             printing: dict[str, list[str]] = {}
+            reported: dict[str, list[Macro]] = {}
             for macro in table.macros:
-                if self._raw_sought(macro, entries.get(macro.identifier)):
+                if macro.parameters or macro.body == f"\\{macro.name}":
+                    continue
+                if self._reported(entries.get(macro.identifier)):
+                    reported.setdefault(macro.body, []).append(macro)
+                elif "\\" in macro.body:
                     printing.setdefault(macro.body, []).append(macro.name)
-            ordered = sorted(printing, key=lambda body: -len(body))
+            ordered = sorted({*printing, *reported}, key=lambda body: -len(body))
             self._notations[key] = _Notation(
                 table,
                 entries,
@@ -244,18 +254,15 @@ class TextChecker:  # pylint: disable=too-many-instance-attributes
                     else None
                 ),
                 {body: tuple(names) for body, names in printing.items()},
+                {body: tuple(macros) for body, macros in reported.items()},
             )
         return self._notations[key]
 
-    def _raw_sought(self, macro: Macro, visible: Visible | None) -> bool:
-        """Whether the printed body of a macro is sought in the mathematics of a text: a body
-        without parameters, holding a control sequence other than the macro itself, of an entry
-        whose use is admitted."""
-        if macro.parameters or "\\" not in macro.body or macro.body == f"\\{macro.name}":
-            return False
+    def _reported(self, visible: Visible | None) -> bool:
+        """Whether the status of an entry reports its use in texts."""
         entry = visible.entry if visible is not None else None
         role = self._role(entry.status) if isinstance(entry, Entry) else None
-        return role is None or role.term_in_texts is Severity.OFF
+        return role is not None and role.term_in_texts is not Severity.OFF
 
     def _role(self, status: str | None) -> StatusRole | None:
         """Return the behaviour of a status, the default status standing for an absent one."""
@@ -437,17 +444,25 @@ class TextChecker:  # pylint: disable=too-many-instance-attributes
             if notation.bodies is None:
                 continue
             for match in notation.bodies.finditer(view.text):
-                names = " or ".join(f"\\{name}" for name in notation.printing[match.group(0)])
+                body, line = match.group(0), prose.line(view.to_source(match.start()))
+                if body not in notation.printing:
+                    for macro in notation.reported[body]:
+                        self._check_entry(resource, line, macro, notation, written=body)
+                    continue
+                names = " or ".join(f"\\{name}" for name in notation.printing[body])
                 self._sink.report(
                     "raw-printed-form",
                     resource,
                     "",
-                    f"'{match.group(0)}' is the printed form of the macro {names}; call it",
-                    prose.line(view.to_source(match.start())),
+                    f"'{body}' is the printed form of the macro {names}; call it",
+                    line,
                 )
 
-    def _check_entry(self, resource: str, line: int, macro: Macro, notation: _Notation) -> None:
-        """Report the macro of an entry whose status reports its use in texts."""
+    def _check_entry(
+        self, resource: str, line: int, macro: Macro, notation: _Notation, written: str = ""
+    ) -> None:
+        """Report the macro of an entry whose status reports its use in texts, or its printed body
+        when `written` gives it."""
         visible = notation.entries.get(macro.identifier)
         if visible is None or not isinstance(visible.entry, Entry):
             return
@@ -456,15 +471,21 @@ class TextChecker:  # pylint: disable=too-many-instance-attributes
         if role is None or role.term_in_texts is Severity.OFF:
             return
         replacement = next(
-            (item.name for item in notation.table.macros if item.identifier == entry.replaced_by),
+            (item for item in notation.table.macros if item.identifier == entry.replaced_by),
             None,
         )
+        advice = ""
+        if replacement is not None:
+            advice = f"; write \\{replacement.name}"
+            if written:
+                advice += f", printing '{replacement.body}'"
+        subject = f"'{written}'" if written else f"\\{macro.name}"
         self._sink.report(
             "entry-status",
             resource,
             "",
-            f"\\{macro.name} prints the entry {macro.identifier} of status "
-            f"{self._status(entry.status)}" + (f"; write \\{replacement}" if replacement else ""),
+            f"{subject} prints the entry {macro.identifier} of status "
+            f"{self._status(entry.status)}{advice}",
             line,
             role.term_in_texts,
         )
@@ -488,5 +509,15 @@ def _slot(composition: Composition | None, refs: tuple[str, ...]) -> str:
 
 
 def _body_pattern(body: str) -> str:
-    """Return the pattern of a printed body, closed by a boundary when it ends on a control word."""
-    return re.escape(body) + (r"(?![A-Za-z])" if re.search(r"\\[A-Za-z]+$", body) else "")
+    """Return the pattern of a printed body, opened by a boundary when it starts with a letter, and
+    closed by a boundary when it ends on a control word.
+
+    Examples
+    --------
+    >>> pattern = re.compile(_body_pattern("s_k"))
+    >>> bool(pattern.search("\\\\cos_k")), bool(pattern.search("a + s_k"))
+    (False, True)
+    """
+    opening = r"(?<![A-Za-z\\])" if body[:1].isalpha() else ""
+    closing = r"(?![A-Za-z])" if re.search(r"\\[A-Za-z]+$", body) else ""
+    return opening + re.escape(body) + closing

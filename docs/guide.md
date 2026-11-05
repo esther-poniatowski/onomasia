@@ -62,9 +62,9 @@ Only a text bound to a glossary or a notation is read and checked. Before its pr
 | `forbidden-form` | a form forbidden by a lexical rule binding the text, outside the exceptions of the rule |
 | `frame-mismatch` | a term written outside every frame admitted for it |
 | `term-status` | a term whose status reports its use in texts, with its replacement |
-| `entry-status` | the macro of a notation entry whose status reports its use, with the macro of its replacement |
+| `entry-status` | the macro of a notation entry whose status reports its use, or its printed body taking no parameter, with the macro of its replacement |
 | `unknown-macro` | a macro under the reserved prefix that the bound notations do not define |
-| `raw-printed-form` | the printed body of an entry, holding a control sequence and taking no parameter, written instead of its macro |
+| `raw-printed-form` | the printed body of an entry whose use is admitted, holding a control sequence and taking no parameter, written instead of its macro |
 | `unresolved-text-binding` | a binding naming a glossary or a notation that no record holds, reported at its declaration |
 | `unreadable-text` | a text that cannot be read as UTF-8 |
 
