@@ -396,10 +396,12 @@ class TextChecker:  # pylint: disable=too-many-instance-attributes
             )
 
     def _replacement(self, visible: Visible, replacement: Replacement) -> str:
-        """Return the text of a replacement: the label of its term, or its instruction."""
+        """Return the text of a replacement, its term or its instruction, and its condition."""
         if replacement.term is not None:
-            return self._term_label(visible, replacement.term) or replacement.term
-        return replacement.instruction or ""
+            text = self._term_label(visible, replacement.term) or replacement.term
+        else:
+            text = replacement.instruction or ""
+        return f"{text} ({replacement.condition})" if replacement.condition else text
 
     # --- mathematics --------------------------------------------------------------------------
 

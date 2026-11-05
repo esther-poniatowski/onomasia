@@ -55,3 +55,4 @@ $defs:
           properties:
             body: {$ref: 'common.schema.yml#/$defs/text'}
             when: {$ref: 'common.schema.yml#/$defs/contexts'}
+      metadata: {type: object, description: Fields of the consumer, which Onomasia does not read.}

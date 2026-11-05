@@ -157,6 +157,20 @@ def test_documents_follow_their_contracts(tmp_path: Path, path: str, contract: s
     assert data["contract"] == contract and data["sources"] == [SOURCE.to_data()]
 
 
+def test_term_table_writes_described_forms_without_their_descriptions(tmp_path: Path) -> None:
+    glossary = yaml.safe_load(yaml.safe_dump(GLOSSARY))
+    glossary["terms"]["gain"]["forms"] = [
+        "gains",
+        {"literal": "gain factor", "description": "a compound"},
+        {"regex": "gains? of", "description": "a construction"},
+    ]
+    root = _consumer(tmp_path, {"glossary.yml": glossary})
+    _build(root)
+    data = yaml.safe_load((root / "out" / "terms.yml").read_text(encoding="utf-8"))
+    assert list(SchemaValidator().contract_errors(CONTRACT_SCHEMAS[TERM_TABLE], data)) == []
+    assert data["terms"][0]["forms"] == ["gain", "gains", "gain factor", {"regex": "gains? of"}]
+
+
 def test_macro_table_takes_arguments_from_the_targets(tmp_path: Path) -> None:
     root = _consumer(tmp_path, {})
     _build(root)

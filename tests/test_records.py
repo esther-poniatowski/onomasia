@@ -134,6 +134,36 @@ def test_excluded_folder_is_not_read(tmp_path: Path) -> None:
     assert ("invalid-yaml", "archive/glossary.yml", "") not in _issues(_consumer(tmp_path, records))
 
 
+def test_fields_of_the_consumer_and_described_forms_are_admitted(tmp_path: Path) -> None:
+    glossary = yaml.safe_load(yaml.safe_dump(PROJECT_GLOSSARY))
+    glossary["rules"] = {
+        "no-curve": {
+            "forms": [{"literal": "curves", "description": "the plural"}],
+            "replace_with": [{"term": "manifold", "condition": "for a smooth set"}],
+            "reason": "r",
+            "exceptions": [{"regex": "curves? of", "description": "a construction"}],
+            "metadata": {"origin": "a former checker"},
+        }
+    }
+    notation = yaml.safe_load(yaml.safe_dump(NOTATION))
+    notation["entries"]["lam"]["metadata"] = {"label": "a parameter", "space": "\\mathbb{R}"}
+    records = dict(
+        CLEAN, **{"projects/p/glossary.yml": glossary, "projects/p/notation.yml": notation}
+    )
+    assert _issues(_consumer(tmp_path, records)) == [
+        ("undeclared-entry", "projects/p/notation.yml", "/entries/lam")
+    ]
+
+
+def test_described_expression_reports_its_defect_at_its_pattern(tmp_path: Path) -> None:
+    glossary = yaml.safe_load(yaml.safe_dump(PROJECT_GLOSSARY))
+    glossary["terms"]["manifold"]["forms"] = [{"regex": "(?P<m>manifolds)", "description": "d"}]
+    records = dict(CLEAN, **{"projects/p/glossary.yml": glossary})
+    assert ("invalid-form", "projects/p/glossary.yml", "/terms/manifold/forms/0/regex") in _issues(
+        _consumer(tmp_path, records)
+    )
+
+
 def _with(data: dict, path: list[str], value: object) -> dict:
     """Copy nested data, setting the value at a path of keys."""
     copy = yaml.safe_load(yaml.safe_dump(data))

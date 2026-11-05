@@ -51,10 +51,17 @@ def _contexts(value: object) -> Contexts:
 
 
 def _form(value: object) -> Form:
-    """Read a form, literal or regular expression."""
-    if isinstance(value, Mapping):
-        return Form(str(value["regex"]), regex=True)
-    return Form(str(value))
+    """Read a form, literal or regular expression, written alone or with its description."""
+    if not isinstance(value, Mapping):
+        return Form(str(value))
+    data = cast(Data, value)
+    regex = "regex" in data
+    return Form(str(data["regex" if regex else "literal"]), regex, _text(data, "description"))
+
+
+def _metadata(data: Data) -> Mapping[str, object]:
+    """Read the fields of the consumer, empty when absent."""
+    return cast(Mapping[str, object], data.get("metadata") or {})
 
 
 def _term(data: Data) -> Term:
@@ -74,7 +81,7 @@ def _term(data: Data) -> Term:
             for item in cast(Sequence[Data], _list(data, "alternatives"))
         ),
         relations={name: tuple(targets) for name, targets in relations.items()},
-        metadata=cast(Mapping[str, object], data.get("metadata") or {}),
+        metadata=_metadata(data),
     )
 
 
@@ -85,7 +92,10 @@ def _rule(data: Data) -> LexicalRule:
         forms=tuple(_form(form) for form in _list(data, "forms")),
         replacements=tuple(
             Replacement(
-                _text(item, "term"), _text(item, "instruction"), _contexts(item.get("when"))
+                _text(item, "term"),
+                _text(item, "instruction"),
+                _contexts(item.get("when")),
+                _text(item, "condition"),
             )
             for item in cast(Sequence[Data], _list(data, "replace_with"))
         ),
@@ -95,6 +105,7 @@ def _rule(data: Data) -> LexicalRule:
         audiences=frozenset(cast(Sequence[str], audiences)) if audiences is not None else None,
         exceptions=tuple(_form(form) for form in _list(data, "exceptions")),
         case_sensitive=bool(data.get("case_sensitive", False)),
+        metadata=_metadata(data),
     )
 
 
@@ -121,6 +132,7 @@ def _entry(data: Data) -> Entry:
             for item in cast(Sequence[Data], _list(data, "alternatives"))
         ),
         overloads=tuple(str(item) for item in _list(data, "overloads")),
+        metadata=_metadata(data),
     )
 
 

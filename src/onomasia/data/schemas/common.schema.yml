@@ -22,7 +22,25 @@ $defs:
     minLength: 1
     description: Status of the entry, among the statuses of the vocabulary of the consumer.
   form:
-    description: A written form, literal at word boundaries, or a regular expression of Python.
+    description: >-
+      A written form of a record, literal at word boundaries or a regular expression of Python,
+      written as an object to state what it stands for.
+    oneOf:
+      - {type: string, minLength: 1}
+      - type: object
+        additionalProperties: false
+        required: [literal]
+        properties:
+          literal: {type: string, minLength: 1}
+          description: {$ref: '#/$defs/text'}
+      - type: object
+        additionalProperties: false
+        required: [regex]
+        properties:
+          regex: {type: string, minLength: 1}
+          description: {$ref: '#/$defs/text'}
+  normal-form:
+    description: A written form of a document, a literal string or a regular expression.
     oneOf:
       - {type: string, minLength: 1}
       - type: object

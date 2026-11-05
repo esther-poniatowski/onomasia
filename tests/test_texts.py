@@ -265,6 +265,31 @@ def test_messages_name_the_replacements(tmp_path: Path) -> None:
     )
 
 
+def test_described_forms_match_and_conditions_reach_the_advice(tmp_path: Path) -> None:
+    glossary = yaml.safe_load(yaml.safe_dump(GLOSSARY))
+    glossary["rules"] = {
+        "no-curve": {
+            "forms": [{"literal": "tuning curve", "description": "the compound"}],
+            "replace_with": [
+                {"term": "gain", "condition": "in the sense of a scaling"},
+                {"instruction": "write response profile", "condition": "for a profile"},
+            ],
+            "reason": "r",
+            "exceptions": [
+                {"literal": "tuning curve shape", "description": "the shape of a figure"},
+                {"regex": "tuning curves? of V1", "description": "a recorded curve"},
+            ],
+        }
+    }
+    text = "A tuning curve.\nA tuning curve shape.\nA tuning curve of V1.\n"
+    root = _consumer(tmp_path, {"records/base.glossary.yml": glossary, "notes/a.md": text})
+    found = [m for m in _messages(root) if "forbidden by no-curve" in m]
+    assert len(found) == 1
+    assert "write gain (in the sense of a scaling) or write response profile (for a profile)" in (
+        found[0]
+    )
+
+
 def _text(tmp_path: Path, text: str, **glossary_terms: object) -> list[tuple[int | None, str]]:
     """Check one note against the glossary, terms replaced or added, returning (line, check)."""
     files: dict[str, object] = {"notes/a.md": text}

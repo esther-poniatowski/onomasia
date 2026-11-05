@@ -18,7 +18,7 @@ properties:
       required: [id, forms, status, gloss]
       properties:
         id: {$ref: 'common.schema.yml#/$defs/id'}
-        forms: {type: array, items: {$ref: 'common.schema.yml#/$defs/form'}}
+        forms: {type: array, items: {$ref: 'common.schema.yml#/$defs/normal-form'}}
         status: {type: string, minLength: 1}
         gloss:
           type: object

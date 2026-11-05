@@ -3,7 +3,7 @@ tags:
   - decision
 status: accepted
 created: 2026-11-03
-revised: 2026-11-03
+revised: 2026-11-05
 index: "[Architecture decisions](docs/adr/_index.md)"
 aliases:
   - Formats and contracts decision
@@ -41,7 +41,9 @@ The [record formats](../formats.md), the [configuration](../configuration.md) an
 
 **Overlays in a format of their own.** The schema of an overlay admits classes and the [printed values of entries](../formats.md#^overlays) only. Therefore, an overlay cannot change a name, an argument or a target. ^overlay-format
 
-**Core fields and declared vocabularies.** A term holds a fixed set of fields, each with its meaning stated by the format. Its statuses, context dimensions and relations are vocabularies declared in the configuration of the consumer. Every other field of a consumer goes under `metadata`, left unread by Onomasia. ^term-fields
+**Core fields and declared vocabularies.** A term, a lexical rule and a notation entry each hold a fixed set of fields, whose meanings the format states. The statuses, the context dimensions and the relations are vocabularies declared in the configuration of the consumer. Every other field of a consumer goes under `metadata`, left unread by Onomasia. ^term-fields
+
+**Descriptions of forms and conditions of replacements.** A form written as an object may carry a `description`, such as the construction admitted by an exception, and no check reads it. A replacement may state under `condition` the sense of the forbidden form served by the replacement, and the check `forbidden-form` prints the condition with the replacement. ^form-descriptions
 
 **One composition engine for glossaries and notations.** The [composition](../formats.md#^composition) of glossaries and of notations follows one algorithm. That algorithm treats every section of every format alike. An overlay is applied by a separate step, after the composition of its notation. ^composition
 
@@ -73,6 +75,7 @@ The [record formats](../formats.md), the [configuration](../configuration.md) an
 - **Obsidian holds one macro table for a vault.** Therefore, an overlay shows only in builds, and must keep every name written in a note.
 - **Matplotlib mathtext defines no macros.** Figure code needs the bodies themselves, expanded before mathtext reads a label.
 - **Anagraphe resolves the bindings of texts.** The designation decision assigns this task to Anagraphe, so Onomasia does not decide which glossary, notation and audiences bind a text.
+- **The records of Mixture carry fields beyond the core.** Its 529 symbols carry labels, sources, arguments and spaces. These fields belong to the units of Gnomon, once these units exist. Each of its 51 exceptions describes its admitted construction, and 8 of its replacements serve one sense of the forbidden form only.
 - **Builds of documents read the outputs.** A partial output, or an output written from records holding an error, would print wrong symbols without any report.
 
 ## Options weighed
@@ -118,6 +121,29 @@ The [record formats](../formats.md), the [configuration](../configuration.md) an
 | --- | --- | --- |
 | Every field of Geonexus, with fixed value sets | The easiest migration for Geonexus and Mixture | The value sets of one vault become constants of the tool |
 | **Core fields, declared vocabularies, and free metadata** | Each corpus keeps its value sets and its own fields | Taken |
+
+**Fields of a lexical rule and of a notation entry beyond the core.**
+
+| Option | Benefit | Reason it is not taken |
+| --- | --- | --- |
+| Metadata on terms only, the other fields of an entry in a file beside the notation | No change of format | Two files to keep in step until the units of Gnomon carry the fields |
+| Metadata on terms only, the other fields dropped | No change of format | The migration of the units must read the fields from the history of the former records |
+| **Metadata on terms, rules and entries** | One file, no field lost, and one rule for every section of a glossary or a notation | Taken |
+
+**Description of a form.**
+
+| Option | Benefit | Reason it is not taken |
+| --- | --- | --- |
+| A YAML comment above the form | No change of format | The description escapes the schema and every tool reading the records |
+| **A description on a form written as an object** | Checked by the schema, and readable by tools | Taken |
+
+**Sense of the forbidden form served by a replacement.**
+
+| Option | Benefit | Reason it is not taken |
+| --- | --- | --- |
+| The condition folded into an instruction | No change of format | The replacement names no term, so the label and the status of the term are no longer read |
+| A YAML comment | No change of format | The condition no longer reaches the writer through the issue |
+| **A field `condition`, printed in the advice** | The writer chooses the replacement fitting the sense of the text | Taken |
 
 **Bindings of texts.**
 

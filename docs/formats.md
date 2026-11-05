@@ -22,7 +22,7 @@ Every record names its format under the key `_schema`, and its identifier under 
 - two records of one format must not share an identifier, as the check `duplicate-record` enforces;
 - two entries of one record must not share an identifier, even in two sections, as the check `duplicate-entry` enforces.
 
-Every record, and every term, may carry a mapping `metadata` for the fields of the consumer. Onomasia reads no field of `metadata`. ^identifiers
+Every record, term, lexical rule and notation entry may carry a mapping `metadata` for the fields of the consumer. Onomasia reads no field of `metadata`. ^identifiers
 
 ## Composition of glossaries and notations
 
@@ -75,9 +75,9 @@ A rule also admits three optional fields: `severity`, `status` and `case_sensiti
 - `audiences`, the audiences of the texts bound by the rule; a rule without `audiences` binds every text bound to its glossary;
 - `exceptions`, the forms inside which a match of a forbidden form is admitted.
 
-An audience of a rule binds a text when the [scope table](contracts.md#^scope-table) relates it to an audience of the text, and each audience relates to itself without a table. The check `rule-shadows-term` reports a rule forbidding a literal form of a term of the same composed glossary. ^lexical-rules
+An audience of a rule binds a text when the [scope table](contracts.md#^scope-table) relates it to an audience of the text, and each audience relates to itself without a table. The check `rule-shadows-term` reports a rule forbidding a literal form of a term of the same composed glossary. A replacement may also state, under `condition`, the sense of the forbidden form served by the replacement. The check `forbidden-form` prints this condition after the replacement, so that the writer chooses the replacement fitting the sense of the text. ^lexical-rules
 
-A literal form matches as whole words: no letter, digit, underscore or hyphen touches it on either side, so `regime` matches neither `regimes` nor `learning-regime`. The words of a literal form are separated in a text by spaces, non-breaking spaces included, holding one line break at most, so a form never spans two paragraphs, nor a masked region of the text. A regular expression is used as written, a leading global flag such as `(?i)` applying to the form alone. The check `invalid-form` reports an expression that does not compile, names a group, holds a backreference, or matches the empty string. A form ignores case unless its term or its rule sets `case_sensitive`. Among the literal forms of a term, its label included, the longest is tried first, so `gain field` wins over `gain`. ^matching
+A literal form matches as whole words: no letter, digit, underscore or hyphen touches it on either side, so `regime` matches neither `regimes` nor `learning-regime`. The words of a literal form are separated in a text by spaces, non-breaking spaces included, holding one line break at most, so a form never spans two paragraphs, nor a masked region of the text. A regular expression is used as written, a leading global flag such as `(?i)` applying to the form alone. The check `invalid-form` reports an expression that does not compile, names a group, holds a backreference, or matches the empty string. A form ignores case unless its term or its rule sets `case_sensitive`. Among the literal forms of a term, its label included, the longest is tried first, so `gain field` wins over `gain`. A form may also be written as an object, `{literal: …}` or `{regex: …}`, to carry a `description`, such as the construction admitted by an exception. No check reads the description. ^matching
 
 A frame is written as tokens separated by spaces:
 

@@ -76,6 +76,9 @@ $defs:
             term: {$ref: 'common.schema.yml#/$defs/ref'}
             instruction: {$ref: 'common.schema.yml#/$defs/text'}
             when: {$ref: 'common.schema.yml#/$defs/contexts'}
+            condition:
+              $ref: 'common.schema.yml#/$defs/text'
+              description: Sense of the forbidden form that the replacement serves.
       reason: {$ref: 'common.schema.yml#/$defs/text'}
       severity: {enum: [error, warning]}
       status: {$ref: 'common.schema.yml#/$defs/status'}
@@ -88,3 +91,4 @@ $defs:
         type: array
         items: {$ref: 'common.schema.yml#/$defs/form'}
       case_sensitive: {type: boolean}
+      metadata: {type: object, description: Fields of the consumer, which Onomasia does not read.}

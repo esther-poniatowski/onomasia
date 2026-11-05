@@ -92,7 +92,7 @@ The macro lookup names its notations under `notations`, and maps each unit, unde
 The term table gives Hermeneia the terms of one composed glossary, named under `glossary`. The table lists its terms under `terms`, sorted by identifier, and each term states four fields:
 
 - `id`, its identifier;
-- `forms`, its label, its other forms and the labels of its alternatives;
+- `forms`, its label, its other forms and the labels of its alternatives, each form written as a string or as `{regex: …}`, without the description given by its record;
 - `status`, its status, the default status standing for an absent one;
 - `gloss`, the text of its gloss with the `resource` declaring the term and the JSON Pointer of the gloss.
 

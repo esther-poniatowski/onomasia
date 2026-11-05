@@ -75,10 +75,13 @@ class Form:
         Literal, or pattern when `regex` is true.
     regex : bool
         Whether `text` is a regular expression of the Python module `re`.
+    description : str | None
+        What the form stands for, stated by the consumer and read by no check.
     """
 
     text: str
     regex: bool = False
+    description: str | None = None
 
 
 @dataclass(frozen=True)
@@ -155,11 +158,14 @@ class Replacement:
         Rewriting instruction, for a form that no declared term replaces.
     contexts : Contexts
         Contexts in which this replacement holds, when several replacements compete.
+    condition : str | None
+        Sense of the forbidden form that this replacement serves, printed with it in the advice.
     """
 
     term: str | None
     instruction: str | None
     contexts: Contexts = field(default_factory=dict)
+    condition: str | None = None
 
 
 @dataclass(frozen=True)
@@ -185,6 +191,8 @@ class LexicalRule:  # pylint: disable=too-many-instance-attributes
         Forms inside which a match of the rule is admitted.
     case_sensitive : bool
         Whether the forms match with their case.
+    metadata : Mapping[str, object]
+        Fields of the consumer, which Onomasia does not read.
     """
 
     forms: tuple[Form, ...]
@@ -195,6 +203,7 @@ class LexicalRule:  # pylint: disable=too-many-instance-attributes
     audiences: frozenset[str] | None = None
     exceptions: tuple[Form, ...] = ()
     case_sensitive: bool = False
+    metadata: Mapping[str, object] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -246,6 +255,8 @@ class Entry:  # pylint: disable=too-many-instance-attributes
         Other bodies of the symbol, each with the contexts that it suits.
     overloads : tuple[str, ...]
         Entries of the composed notation printing the same body on purpose.
+    metadata : Mapping[str, object]
+        Fields of the consumer, which Onomasia does not read.
     """
 
     denotes: str | None = None
@@ -260,6 +271,7 @@ class Entry:  # pylint: disable=too-many-instance-attributes
     replaced_by: str | None = None
     alternatives: tuple[Alternative, ...] = ()
     overloads: tuple[str, ...] = ()
+    metadata: Mapping[str, object] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
