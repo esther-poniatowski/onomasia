@@ -66,7 +66,7 @@ PROJECT_GLOSSARY = {
             "label": "old name",
             "gloss": "a former name",
             "status": "deprecated",
-            "replaced_by": "tuning-curve",
+            "superseded_by": "tuning-curve",
         },
         "manifold": {
             "label": "manifold",

@@ -33,7 +33,7 @@ $defs:
         items: {$ref: 'common.schema.yml#/$defs/form'}
       source: {$ref: 'common.schema.yml#/$defs/text'}
       status: {$ref: 'common.schema.yml#/$defs/status'}
-      replaced_by: {$ref: 'common.schema.yml#/$defs/ref'}
+      superseded_by: {$ref: 'common.schema.yml#/$defs/ref'}
       case_sensitive: {type: boolean}
       frames:
         type: array

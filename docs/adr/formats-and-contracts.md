@@ -3,7 +3,7 @@ tags:
   - decision
 status: accepted
 created: 2026-11-03
-revised: 2026-11-05
+revised: 2026-11-10
 index: "[Architecture decisions](docs/adr/_index.md)"
 aliases:
   - Formats and contracts decision
@@ -45,6 +45,8 @@ The [record formats](../formats.md), the [configuration](../configuration.md) an
 
 **Descriptions of forms and conditions of replacements.** A form written as an object may carry a `description`, such as the construction admitted by an exception, and no check reads it. A replacement may state under `condition` the sense of the forbidden form served by the replacement, and the check `forbidden-form` prints the condition with the replacement. ^form-descriptions
 
+**Names shared with the corpus.** A term or an entry names its replacement under `superseded_by`. The packaged vocabulary names `superseded` the status requiring a replacement. Both names follow the Geonexus vault and its tools, which use them since 2026-11-08. The formats keep version 1, since the rename precedes the first release of Onomasia and any record written in its formats. ^shared-names
+
 **One composition engine for glossaries and notations.** The [composition](../formats.md#^composition) of glossaries and of notations follows one algorithm. That algorithm treats every section of every format alike. An overlay is applied by a separate step, after the composition of its notation. ^composition
 
 **A catalog of checks.** Every check is listed with its default severity in the packaged defaults. A consumer changes a severity or turns a check off, and cannot name a check absent from the catalog. ^catalog
@@ -67,6 +69,7 @@ The [record formats](../formats.md), the [configuration](../configuration.md) an
 
 ## Constraints that decide the form
 
+- **The corpus names the relation `superseded_by`.** The vault decided on 2026-11-08 to name the status of withdrawn entries `superseded`, and their replacement `superseded_by`, in every project repository.
 - **Several corpora consume Onomasia.** Each corpus declares its own statuses, contexts and relations, so a value set of one corpus cannot become a constant of the tool.
 - **A glossary is imported by many records.** A check run on every composition reports an inherited defect once per importer, unless it reports each defect at one record.
 - **A control word of TeX holds letters only.** An identifier of Onomasia may hold hyphens and digits, so it cannot always serve as a macro name.
@@ -144,6 +147,20 @@ The [record formats](../formats.md), the [configuration](../configuration.md) an
 | The condition folded into an instruction | No change of format | The replacement names no term, so the label and the status of the term are no longer read |
 | A YAML comment | No change of format | The condition no longer reaches the writer through the issue |
 | **A field `condition`, printed in the advice** | The writer chooses the replacement fitting the sense of the text | Taken |
+
+**Name of the replacement of a term or an entry.**
+
+| Option | Benefit | Reason it is not taken |
+| --- | --- | --- |
+| `replaced_by`, with the packaged status `deprecated` | No change of format | Onomasia alone would name the relation otherwise than the vault, Anagraphe, Gnomon and Ekthesis, so each migration would map one name onto the other |
+| **`superseded_by`, with the packaged status `superseded`** | One name for the relation across the corpus | Taken. The status key `requires_replacement` and the check `missing-replacement` keep their names, since they name the requirement |
+
+**Version of the formats after the rename.**
+
+| Option | Benefit | Reason it is not taken |
+| --- | --- | --- |
+| Version 2 of both formats | Every renamed field starts the next version, without exception | Version 1 would name formats that no record ever used |
+| **Version 1, corrected before any use** | No unused version | Taken. No release and no record precede the rename |
 
 **Bindings of texts.**
 

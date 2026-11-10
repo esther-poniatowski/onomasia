@@ -72,7 +72,7 @@ The notations bound to a text compose into one macro table, whose defects are re
 | Option | Benefit | Reason it is not taken |
 | --- | --- | --- |
 | The macro of a reported entry only | Every issue names a macro | A text written in raw TeX, such as the notes of Mixture with 224 uses of deprecated symbols, has no reported use |
-| **The macro and the printed body of a reported entry** | A deprecated symbol is reported in every text, with its replacement | Taken |
+| **The macro and the printed body of a reported entry** | A superseded symbol is reported in every text, with its replacement | Taken |
 
 **Masked regions in an exception.**
 
@@ -104,7 +104,7 @@ Beyond the decisions above, five readings of the old checker change, each by a f
 - an exception of a rule is a form containing the forbidden match, so the old tests `neighbours` and the window of the paragraph are gone; an exception of the kind `neighbours` becomes a regular expression;
 - an exception relying on the blanks left by masked mathematics, such as `populations?\s{2,}\S`, no longer admits its match, since a masked region holds no space; such an exception names the placeholder `\x00` instead;
 - a text bound to no value is reported by the check of Anagraphe for the files that its condition `required` selects, not by Onomasia;
-- the advice of a deprecated symbol names the macro of its replacement only, no longer the other symbols of the same term;
+- the advice of a superseded symbol names the macro of its replacement only, no longer the other symbols of the same term;
 - a printed body is matched exactly, with no tolerance of spaces inside it.
 
 ## Open points

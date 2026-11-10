@@ -147,7 +147,7 @@ checks:
 
 # Vocabularies read by the checks, replaced as a whole by the vocabularies of a consumer.
 vocabulary:
-  # Each status may require a replacement, named by the key replaced_by of its entry.
+  # Each status may require a replacement, named by the key superseded_by of its entry.
   # Each status may also state, under in_texts, the severity of a use of a term or an entry of the
   # status in a text (term, off by default), and the highest severity of a rule of the status
   # (rule, error by default).
@@ -155,7 +155,7 @@ vocabulary:
     candidate: {requires_replacement: false, in_texts: {term: warning, rule: warning}}
     in-use: {requires_replacement: false}
     ratified: {requires_replacement: false}
-    deprecated: {requires_replacement: true, in_texts: {term: error, rule: "off"}}
+    superseded: {requires_replacement: true, in_texts: {term: error, rule: "off"}}
   # Status of an entry that declares none.
   default_status: in-use
   # Dimensions of the contexts that an alternative suits, each with its admitted values.

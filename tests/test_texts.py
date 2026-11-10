@@ -53,8 +53,8 @@ GLOSSARY = {
         "old-word": {
             "label": "oldword",
             "gloss": "g",
-            "status": "deprecated",
-            "replaced_by": "gain",
+            "status": "superseded",
+            "superseded_by": "gain",
         },
         "draft-word": {"label": "draftword", "gloss": "g", "status": "candidate"},
     },
@@ -64,7 +64,7 @@ GLOSSARY = {
         "physics-only": _rule(["field"], audiences=["physics"]),
         "soft": _rule(["population"], severity="warning"),
         "draft-rule": _rule(["proposedban"], status="candidate"),
-        "retired-rule": _rule(["retired"], status="deprecated"),
+        "retired-rule": _rule(["retired"], status="superseded"),
     },
 }
 
@@ -77,8 +77,8 @@ NOTATION = {
         "old-x": {
             "gloss": "g",
             "body": "x_{\\mathrm{old}}",
-            "status": "deprecated",
-            "replaced_by": "w",
+            "status": "superseded",
+            "superseded_by": "w",
         },
     },
 }
@@ -423,8 +423,8 @@ def test_raw_bodies_report_the_longest_body_and_every_overload(tmp_path: Path) -
             "gloss": "g",
             "body": "\\theta",
             "name": "oldtheta",
-            "status": "deprecated",
-            "replaced_by": "w",
+            "status": "superseded",
+            "superseded_by": "w",
         },
     )
     text = "Math: $\\boldsymbol{W}_t + \\mu + \\theta$.\n"
@@ -442,16 +442,16 @@ def test_raw_body_of_a_reported_entry_is_reported_with_its_replacement(tmp_path:
             "gloss": "g",
             "body": "s_k",
             "name": "oldS",
-            "status": "deprecated",
-            "replaced_by": "w",
+            "status": "superseded",
+            "superseded_by": "w",
         },
     )
     text = "Math: $x_{\\mathrm{old}} + s_k + \\cos_k$.\n"
     root = _consumer(tmp_path, {"records/base.notation.yml": notation, "notes/a.md": text})
     assert [m for m in _messages(root) if "prints the entry" in m] == [
-        "'x_{\\mathrm{old}}' prints the entry old-x of status deprecated; write \\Wm, "
+        "'x_{\\mathrm{old}}' prints the entry old-x of status superseded; write \\Wm, "
         "printing '\\boldsymbol{W}'",
-        "'s_k' prints the entry old of status deprecated; write \\Wm, printing '\\boldsymbol{W}'",
+        "'s_k' prints the entry old of status superseded; write \\Wm, printing '\\boldsymbol{W}'",
     ]
 
 
@@ -488,7 +488,7 @@ def test_status_declares_its_effect_on_texts(tmp_path: Path) -> None:
     vocabulary = {
         "statuses": {
             "in-use": {"requires_replacement": False},
-            "deprecated": {
+            "superseded": {
                 "requires_replacement": True,
                 "in_texts": {"term": "warning", "rule": "off"},
             },

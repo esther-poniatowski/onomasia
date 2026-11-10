@@ -35,7 +35,7 @@ The file declares `schema_version: 1`, then six optional sections, whose keys ar
 | --- | --- | --- |
 | `records.glossaries`, `records.notations`, `records.overlays` | the globs of the records of each format, relative to the root | no record |
 | `records.exclude` | the globs or folders left out of every format | none |
-| `vocabulary.statuses` | each status, with `requires_replacement`, and under `in_texts` the severities `term` and `rule` of its [effect on texts](formats.md#^statuses) | `candidate`, `in-use`, `ratified`, `deprecated`; only `deprecated` requires a replacement |
+| `vocabulary.statuses` | each status, with `requires_replacement`, and under `in_texts` the severities `term` and `rule` of its [effect on texts](formats.md#^statuses) | `candidate`, `in-use`, `ratified`, `superseded`; only `superseded` requires a replacement |
 | `vocabulary.default_status` | the status of an entry declaring none | `in-use` |
 | `vocabulary.contexts` | each dimension of the contexts, with its values | no dimension |
 | `vocabulary.relations` | the relations admitted between terms | `narrows`, `broadens` |

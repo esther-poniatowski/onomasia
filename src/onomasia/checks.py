@@ -89,7 +89,7 @@ def _status_entries(
         for identifier, visible in composition.local(section):
             entry = visible.entry
             if isinstance(entry, (Term, Entry)):
-                yield section, identifier, visible, entry.status, entry.replaced_by
+                yield section, identifier, visible, entry.status, entry.superseded_by
             elif isinstance(entry, LexicalRule):
                 yield section, identifier, visible, entry.status, None
 
@@ -98,7 +98,7 @@ def check_statuses(context: CheckContext) -> None:
     """Check each status against the vocabulary, and the replacement that a status requires."""
     vocabulary = context.vocabulary
     for composition in context.glossaries + context.notations:
-        for section, identifier, visible, status, replaced_by in _status_entries(composition):
+        for section, identifier, visible, status, superseded_by in _status_entries(composition):
             pointer = f"/{section}/{identifier}"
             role = vocabulary.statuses.get(status or vocabulary.default_status)
             if role is None:
@@ -109,21 +109,21 @@ def check_statuses(context: CheckContext) -> None:
                     f"{pointer}/status",
                     f"status {status} is not declared",
                 )
-            elif role.requires_replacement and replaced_by is None and section != "rules":
+            elif role.requires_replacement and superseded_by is None and section != "rules":
                 _report(
                     context,
                     "missing-replacement",
                     visible,
                     pointer,
-                    f"status {status} requires replaced_by",
+                    f"status {status} requires superseded_by",
                 )
-            if replaced_by is not None and composition.lookup(section, replaced_by) is None:
+            if superseded_by is not None and composition.lookup(section, superseded_by) is None:
                 _report(
                     context,
                     "unresolved-reference",
                     visible,
-                    f"{pointer}/replaced_by",
-                    f"no {SECTION_NOUNS[section]} {replaced_by}",
+                    f"{pointer}/superseded_by",
+                    f"no {SECTION_NOUNS[section]} {superseded_by}",
                 )
 
 

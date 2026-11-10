@@ -73,7 +73,7 @@ def _term(data: Data) -> Term:
         forms=tuple(_form(form) for form in _list(data, "forms")),
         source=_text(data, "source"),
         status=_text(data, "status"),
-        replaced_by=_text(data, "replaced_by"),
+        superseded_by=_text(data, "superseded_by"),
         case_sensitive=bool(data.get("case_sensitive", False)),
         frames=tuple(str(frame) for frame in _list(data, "frames")),
         alternatives=tuple(
@@ -126,7 +126,7 @@ def _entry(data: Data) -> Entry:
         entry_argument=bool(data.get("entry", False)),
         separator=_text(data, "separator"),
         status=_text(data, "status"),
-        replaced_by=_text(data, "replaced_by"),
+        superseded_by=_text(data, "superseded_by"),
         alternatives=tuple(
             Alternative(str(item["body"]), _contexts(item.get("when")))
             for item in cast(Sequence[Data], _list(data, "alternatives"))

@@ -60,7 +60,7 @@ A written form is either a literal, matched as whole words, or a regular express
 | `frames` | the constructions admitted for the term, written in the [grammar of frames](#^frames) |
 | `alternatives` | other names of the concept, each with its label and, under `when`, the suited contexts of the vocabulary |
 | `relations` | for each relation of the vocabulary, the terms related to the term |
-| `status`, `replaced_by` | the [status](#^statuses) of the term, and its replacement |
+| `status`, `superseded_by` | the [status](#^statuses) of the term, and the term superseding it |
 
 The check `form-collision` compares the literal forms of the terms of one composed glossary, labels included. Each form is compared case-folded, unless its term sets `case_sensitive`. Regular expressions are never compared. ^glossaries
 
@@ -107,7 +107,7 @@ Four keys of an entry fix its macro:
 - `separator`, the string joining the items of a variadic operator, all passed in one argument;
 - `denotes`, whose target supplies the number of arguments, the binder and the variadic flag.
 
-The [parameter rule](contracts.md#^parameters) maps these keys to the parameters of a macro. An entry also admits a `status` with its `replaced_by`, and `alternatives`, each giving another body under `body` with its contexts under `when`. ^macros
+The [parameter rule](contracts.md#^parameters) maps these keys to the parameters of a macro. An entry also admits a `status` with its `superseded_by`, and `alternatives`, each giving another body under `body` with its contexts under `when`. ^macros
 
 The check `body-collision` reports two entries of one composed notation printing the same body. A pair is admitted when one of its entries names the other under `overloads`. The field `overloads` lists the identifiers of the entries that print the body of the entry on purpose, such as one letter used for two quantities. A declaration admits one pair only: an entry overloading a second entry still collides with a third entry printing the same body. The check `unneeded-overload` reports an overload naming the entry itself or an entry printing another body, and the check `unresolved-reference` reports an overload naming no entry. An overlay declares no overload, so a collision created by an overlay stays an error. ^overloads
 
@@ -122,14 +122,14 @@ The checks `unresolved-overlay` and `unknown-override` report an overlay naming 
 
 ## Statuses
 
-Each term, rule and entry may declare a status among the statuses of the vocabulary. An absent status stands for the default status. A status may require a replacement. Under such a status, a term or an entry names its replacement under `replaced_by`. A lexical rule names its replacements under `replace_with` in every case.
+Each term, rule and entry may declare a status among the statuses of the vocabulary. An absent status stands for the default status. A status may require a replacement. Under such a status, a term or an entry names its replacement under `superseded_by`. A lexical rule names its replacements under `replace_with` in every case.
 
 A status also states its effect on texts, under `in_texts` in the [configuration](configuration.md); each severity caps the severity of the check that reports the use:
 
 - `term`, the severity of a use of a term or of the macro of an entry of the status, `off` when such a use is admitted;
 - `rule`, the highest severity of a lexical rule of the status, `off` for a rule binding no text.
 
-A status declaring no `in_texts` admits the use of its terms and caps no rule, as `term: off` and `rule: error` do. The packaged statuses report a deprecated term as an error and a candidate term as a warning, lower a candidate rule to a warning, and make a deprecated rule bind no text. ^statuses
+A status declaring no `in_texts` admits the use of its terms and caps no rule, as `term: off` and `rule: error` do. The packaged statuses report a superseded term as an error and a candidate term as a warning, lower a candidate rule to a warning, and make a superseded rule bind no text. ^statuses
 
 ## Checks of the records
 

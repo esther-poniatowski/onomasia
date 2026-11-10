@@ -118,7 +118,7 @@ class Term:  # pylint: disable=too-many-instance-attributes
         Logical target of the note holding the canonical definition.
     status : str | None
         Status of the term, None for the default status of the vocabulary.
-    replaced_by : str | None
+    superseded_by : str | None
         Term replacing this one, for a status requiring a replacement.
     case_sensitive : bool
         Whether the forms match with their case.
@@ -137,7 +137,7 @@ class Term:  # pylint: disable=too-many-instance-attributes
     forms: tuple[Form, ...] = ()
     source: str | None = None
     status: str | None = None
-    replaced_by: str | None = None
+    superseded_by: str | None = None
     case_sensitive: bool = False
     frames: tuple[str, ...] = ()
     alternatives: tuple[Alternative, ...] = ()
@@ -249,7 +249,7 @@ class Entry:  # pylint: disable=too-many-instance-attributes
         Separator of the items of a variadic macro.
     status : str | None
         Status of the entry, None for the default status of the vocabulary.
-    replaced_by : str | None
+    superseded_by : str | None
         Entry replacing this one, for a status requiring a replacement.
     alternatives : tuple[Alternative, ...]
         Other bodies of the symbol, each with the contexts that it suits.
@@ -268,7 +268,7 @@ class Entry:  # pylint: disable=too-many-instance-attributes
     entry_argument: bool = False
     separator: str | None = None
     status: str | None = None
-    replaced_by: str | None = None
+    superseded_by: str | None = None
     alternatives: tuple[Alternative, ...] = ()
     overloads: tuple[str, ...] = ()
     metadata: Mapping[str, object] = field(default_factory=dict)

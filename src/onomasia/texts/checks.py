@@ -314,7 +314,7 @@ class TextChecker:  # pylint: disable=too-many-instance-attributes
             return
         role = self._role(term.status)
         if role is not None and role.term_in_texts is not Severity.OFF:
-            advice = self._term_label(visible, term.replaced_by)
+            advice = self._term_label(visible, term.superseded_by)
             for match in occurrences:
                 self._sink.report(
                     "term-status",
@@ -471,7 +471,7 @@ class TextChecker:  # pylint: disable=too-many-instance-attributes
         if role is None or role.term_in_texts is Severity.OFF:
             return
         replacement = next(
-            (item for item in notation.table.macros if item.identifier == entry.replaced_by),
+            (item for item in notation.table.macros if item.identifier == entry.superseded_by),
             None,
         )
         advice = ""
