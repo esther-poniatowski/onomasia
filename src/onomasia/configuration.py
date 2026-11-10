@@ -2,7 +2,9 @@
 Configuration of a consumer, `onomasia.yml`: where its records live, its vocabularies, and the
 severity of each check.
 
-The file declares its `schema_version`, then six sections, each optional:
+The file lies at `config/tools/onomasia.yml` or at `onomasia.yml` below the root, the first found
+in this order, unless another file is named. It declares its `schema_version`, then six sections,
+each optional:
 
 - `records`, the globs of the records of each format, relative to the root, and the paths
   excluded from every glob;
@@ -29,6 +31,8 @@ Configuration
 
 Functions
 ---------
+locate_configuration(root, path) -> Path
+    Configuration file named, or the first found in its default places below the root.
 load_configuration(root, path) -> Configuration
     Read and resolve the configuration of a consumer.
 default_configuration(root) -> Configuration
@@ -52,7 +56,10 @@ SCHEMA_VERSION = 1
 """Version of the layout of `onomasia.yml` read by this release."""
 
 CONFIGURATION_FILE = "onomasia.yml"
-"""Name of the configuration file, read at the root of a consumer when no other file is named."""
+"""Name of the configuration file."""
+
+CONFIGURATION_LOCATIONS = (Path("config/tools") / CONFIGURATION_FILE, Path(CONFIGURATION_FILE))
+"""Places of the configuration file below the root, in the order of the lookup."""
 
 
 @dataclass(frozen=True)
@@ -448,6 +455,37 @@ def _resolve(root: Path, resource: str, data: Mapping[str, object], origin: str)
     )
     fields.finish()
     return configuration
+
+
+def locate_configuration(root: Path, path: Path | None = None) -> Path:
+    """
+    Configuration file named, or the first found in its default places below the root.
+
+    Parameters
+    ----------
+    root : Path
+        Root of the consumer.
+    path : Path | None
+        Configuration file named on the command line, returned unchanged.
+
+    Returns
+    -------
+    Path
+        `path` when named; otherwise `config/tools/onomasia.yml`, then `onomasia.yml`, below the
+        root.
+
+    Raises
+    ------
+    ConfigurationError
+        If no file is named and no default place holds a file.
+    """
+    if path is not None:
+        return path
+    for location in CONFIGURATION_LOCATIONS:
+        if (root / location).is_file():
+            return root / location
+    places = " or ".join(location.as_posix() for location in CONFIGURATION_LOCATIONS)
+    raise ConfigurationError(f"{root}: no configuration at {places}")
 
 
 def load_configuration(root: Path, path: Path) -> Configuration:

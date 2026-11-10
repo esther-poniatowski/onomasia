@@ -7,7 +7,7 @@ aliases:
 ---
 # Configuration
 
-Each consumer holds its configuration in the file `onomasia.yml` at its root. The configuration holds every value needed by Onomasia from the consumer, and its six sections answer six questions:
+Each consumer holds its configuration in the file `onomasia.yml`, either in the folder `config/tools/` below its root or at its root. Without the option `--config`, Onomasia reads the first of these two files that exists, in this order. The configuration holds every value needed by Onomasia from the consumer, and its six sections answer six questions:
 
 - where the records of the consumer live;
 - which value sets the records use;

@@ -26,3 +26,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - A form may be written as an object, `{literal: …}` or `{regex: …}`, with a `description`.
 - A replacement may state its `condition`, printed in the advice of `forbidden-form`.
 - Each character of a masked region reads as U+0000, which an expression may name.
+- Without `--config`, `check` and `build` read `config/tools/onomasia.yml` below the root, then
+  `onomasia.yml`. A given `--config` is read as before, and a missing configuration names both
+  places.

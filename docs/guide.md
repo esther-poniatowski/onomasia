@@ -17,7 +17,7 @@ A consumer of Onomasia checks its glossaries and notations, then builds the macr
 Both commands of Onomasia read one consumer, located by two options:
 
 - the option `--root` names the root of the consumer, the current folder by default;
-- the option `--config` names the configuration file, `onomasia.yml` at the root by default.
+- the option `--config` names the configuration file. Without it, Onomasia reads `config/tools/onomasia.yml` below the root, and otherwise `onomasia.yml` at the root.
 
 A path passed to `--config` resolves against the current folder, and the file must lie inside the root.
 

@@ -20,7 +20,7 @@ from pathlib import Path
 import typer
 
 from . import info, __version__
-from .configuration import CONFIGURATION_FILE, load_configuration
+from .configuration import load_configuration, locate_configuration
 from .errors import OnomasiaError
 from .issues import Issue, Severity
 from .service import build_outputs, check_records
@@ -38,12 +38,15 @@ def cli_info() -> None:
 def cli_check(
     root: Path = typer.Option(Path("."), "--root", help="Root of the consumer."),
     config: Path = typer.Option(
-        None, "--config", help="Configuration file, onomasia.yml at the root by default."
+        None,
+        "--config",
+        help="Configuration file; config/tools/onomasia.yml, then onomasia.yml, below the root "
+        "by default.",
     ),
 ) -> None:
     """Run every check of a build and of the texts without writing; exit 1 on an error."""
     try:
-        configuration = load_configuration(root, config or root / CONFIGURATION_FILE)
+        configuration = load_configuration(root, locate_configuration(root, config))
         issues = check_records(configuration)
     except OnomasiaError as error:
         typer.echo(f"error: {error}", err=True)
@@ -57,12 +60,15 @@ def cli_check(
 def cli_build(
     root: Path = typer.Option(Path("."), "--root", help="Root of the consumer."),
     config: Path = typer.Option(
-        None, "--config", help="Configuration file, onomasia.yml at the root by default."
+        None,
+        "--config",
+        help="Configuration file; config/tools/onomasia.yml, then onomasia.yml, below the root "
+        "by default.",
     ),
 ) -> None:
     """Check the records, then write the declared outputs, or nothing when an error is reported."""
     try:
-        configuration = load_configuration(root, config or root / CONFIGURATION_FILE)
+        configuration = load_configuration(root, locate_configuration(root, config))
         result = build_outputs(configuration)
     except OnomasiaError as error:
         typer.echo(f"error: {error}", err=True)
