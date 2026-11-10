@@ -26,6 +26,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - A form may be written as an object, `{literal: …}` or `{regex: …}`, with a `description`.
 - A replacement may state its `condition`, printed in the advice of `forbidden-form`.
 - Each character of a masked region reads as U+0000, which an expression may name.
-- Without `--config`, `check` and `build` read `config/tools/onomasia.yml` below the root, then
-  `onomasia.yml`. A given `--config` is read as before, and a missing configuration names both
-  places.
+- Without `--config`, `check` and `build` read `config/tools/onomasia.yml` or `onomasia.yml`
+  below the root. When both files exist, the command stops with status 2 and names both; when
+  neither exists, the message names both places. A given `--config` is read from the current
+  folder, as before, and an absent file is an error.
+- Without `--root`, the root is read from the new environment variable `ONOMASIA_ROOT`, and
+  otherwise is the nearest folder, from the current one upwards, holding one of both files, and
+  otherwise the current folder, formerly always the current folder.
+- The short options `-r` for `--root` and `-c` for `--config`.

@@ -2,9 +2,11 @@
 Configuration of a consumer, `onomasia.yml`: where its records live, its vocabularies, and the
 severity of each check.
 
-The file lies at `config/tools/onomasia.yml` or at `onomasia.yml` below the root, the first found
-in this order, unless another file is named. It declares its `schema_version`, then six sections,
-each optional:
+The file lies at `config/tools/onomasia.yml` or at `onomasia.yml` below the root, and both places
+holding a file is an error, unless another file is named. The root of a command is the folder given
+by `--root`, else by the variable `ONOMASIA_ROOT`, else the nearest folder, from the current one
+upwards, that holds the file at one of its places, else the current folder. The file declares its
+`schema_version`, then six sections, each optional:
 
 - `records`, the globs of the records of each format, relative to the root, and the paths
   excluded from every glob;
@@ -31,8 +33,10 @@ Configuration
 
 Functions
 ---------
+find_root(start) -> Path
+    Nearest folder, from `start` upwards, holding a configuration, else `start`.
 locate_configuration(root, path) -> Path
-    Configuration file named, or the first found in its default places below the root.
+    Configuration file named, or the one found in its default places below the root.
 load_configuration(root, path) -> Configuration
     Read and resolve the configuration of a consumer.
 default_configuration(root) -> Configuration
@@ -59,7 +63,10 @@ CONFIGURATION_FILE = "onomasia.yml"
 """Name of the configuration file."""
 
 CONFIGURATION_LOCATIONS = (Path("config/tools") / CONFIGURATION_FILE, Path(CONFIGURATION_FILE))
-"""Places of the configuration file below the root, in the order of the lookup."""
+"""Places of the configuration file below the root."""
+
+ROOT_VARIABLE = "ONOMASIA_ROOT"
+"""Environment variable naming the root, read when the command line names none."""
 
 
 @dataclass(frozen=True)
@@ -457,33 +464,63 @@ def _resolve(root: Path, resource: str, data: Mapping[str, object], origin: str)
     return configuration
 
 
+def find_root(start: Path) -> Path:
+    """
+    Nearest folder, from `start` upwards, holding a configuration, else `start`.
+
+    Parameters
+    ----------
+    start : Path
+        Folder where the search begins, the current folder of a command.
+
+    Returns
+    -------
+    Path
+        First folder, from `start` up to the top of the file system, holding a file at one of
+        `CONFIGURATION_LOCATIONS`; `start` itself, resolved, when no folder holds one.
+    """
+    start = start.resolve()
+    for folder in (start, *start.parents):
+        if any((folder / location).is_file() for location in CONFIGURATION_LOCATIONS):
+            return folder
+    return start
+
+
 def locate_configuration(root: Path, path: Path | None = None) -> Path:
     """
-    Configuration file named, or the first found in its default places below the root.
+    Configuration file named, or the one found in its default places below the root.
 
     Parameters
     ----------
     root : Path
         Root of the consumer.
     path : Path | None
-        Configuration file named on the command line, returned unchanged.
+        Configuration file named on the command line, read from the current folder.
 
     Returns
     -------
     Path
-        `path` when named; otherwise `config/tools/onomasia.yml`, then `onomasia.yml`, below the
-        root.
+        `path` when named, made absolute; otherwise the one of `config/tools/onomasia.yml` and
+        `onomasia.yml` that exists below the root.
 
     Raises
     ------
     ConfigurationError
-        If no file is named and no default place holds a file.
+        If the named file does not exist, if both default places hold a file, or if no file is
+        named and no default place holds one.
     """
     if path is not None:
-        return path
-    for location in CONFIGURATION_LOCATIONS:
-        if (root / location).is_file():
-            return root / location
+        named = path.absolute()
+        if not named.is_file():
+            raise ConfigurationError(f"{path}: no configuration file")
+        return named
+    found = [root / location for location in CONFIGURATION_LOCATIONS if (root / location).is_file()]
+    if len(found) > 1:
+        raise ConfigurationError(
+            "two configuration files: " + " and ".join(str(item) for item in found) + "; keep one"
+        )
+    if found:
+        return found[0]
     places = " or ".join(location.as_posix() for location in CONFIGURATION_LOCATIONS)
     raise ConfigurationError(f"{root}: no configuration at {places}")
 

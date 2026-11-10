@@ -16,10 +16,10 @@ A consumer of Onomasia checks its glossaries and notations, then builds the macr
 
 Both commands of Onomasia read one consumer, located by two options:
 
-- the option `--root` names the root of the consumer, the current folder by default;
-- the option `--config` names the configuration file. Without it, Onomasia reads `config/tools/onomasia.yml` below the root, and otherwise `onomasia.yml` at the root.
+- the option `-r`, `--root` names the root of the consumer. Without it, the root is the folder named by the environment variable `ONOMASIA_ROOT`, else the nearest folder, from the current one upwards, holding `config/tools/onomasia.yml` or `onomasia.yml`, else the current folder;
+- the option `-c`, `--config` names the configuration file. Without it, Onomasia reads `config/tools/onomasia.yml` or `onomasia.yml` below the root, and stops with an error naming both when both exist.
 
-A path passed to `--config` resolves against the current folder, and the file must lie inside the root.
+A path passed to `--config` resolves against the current folder, the file must exist, and it must lie inside the root. A path written in the configuration resolves against the root.
 
 ## Checking the records
 

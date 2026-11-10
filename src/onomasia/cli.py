@@ -9,6 +9,10 @@ info : Display diagnostic information.
 check : Run every check of a build, and the checks of texts, without writing the outputs.
 build : Check the records, then write the declared outputs.
 
+Both commands take the root from `--root`, else from `ONOMASIA_ROOT`, else from the nearest folder,
+from the current one upwards, holding a configuration, else from the current folder. A path named by
+`--config` is read from the current folder.
+
 See Also
 --------
 typer.Typer
@@ -20,12 +24,33 @@ from pathlib import Path
 import typer
 
 from . import info, __version__
-from .configuration import load_configuration, locate_configuration
+from .configuration import (
+    ROOT_VARIABLE,
+    Configuration,
+    find_root,
+    load_configuration,
+    locate_configuration,
+)
 from .errors import OnomasiaError
 from .issues import Issue, Severity
 from .service import build_outputs, check_records
 
 app = typer.Typer(add_completion=False, no_args_is_help=True)
+
+ROOT_HELP = (
+    "Root of the consumer; by default the nearest folder, from the current one upwards, holding "
+    "config/tools/onomasia.yml or onomasia.yml, else the current folder."
+)
+CONFIG_HELP = (
+    "Configuration file, relative to the current folder; by default config/tools/onomasia.yml or "
+    "onomasia.yml below the root."
+)
+
+
+def _configuration(root: Path | None, config: Path | None) -> Configuration:
+    """Configuration of the consumer at the root given or found, from the file named or found."""
+    resolved = root.resolve() if root is not None else find_root(Path.cwd())
+    return load_configuration(resolved, locate_configuration(resolved, config))
 
 
 @app.command("info")
@@ -36,17 +61,14 @@ def cli_info() -> None:
 
 @app.command("check")
 def cli_check(
-    root: Path = typer.Option(Path("."), "--root", help="Root of the consumer."),
-    config: Path = typer.Option(
-        None,
-        "--config",
-        help="Configuration file; config/tools/onomasia.yml, then onomasia.yml, below the root "
-        "by default.",
+    root: Path | None = typer.Option(
+        None, "--root", "-r", envvar=ROOT_VARIABLE, show_envvar=True, help=ROOT_HELP
     ),
+    config: Path | None = typer.Option(None, "--config", "-c", help=CONFIG_HELP),
 ) -> None:
     """Run every check of a build and of the texts without writing; exit 1 on an error."""
     try:
-        configuration = load_configuration(root, locate_configuration(root, config))
+        configuration = _configuration(root, config)
         issues = check_records(configuration)
     except OnomasiaError as error:
         typer.echo(f"error: {error}", err=True)
@@ -58,17 +80,14 @@ def cli_check(
 
 @app.command("build")
 def cli_build(
-    root: Path = typer.Option(Path("."), "--root", help="Root of the consumer."),
-    config: Path = typer.Option(
-        None,
-        "--config",
-        help="Configuration file; config/tools/onomasia.yml, then onomasia.yml, below the root "
-        "by default.",
+    root: Path | None = typer.Option(
+        None, "--root", "-r", envvar=ROOT_VARIABLE, show_envvar=True, help=ROOT_HELP
     ),
+    config: Path | None = typer.Option(None, "--config", "-c", help=CONFIG_HELP),
 ) -> None:
     """Check the records, then write the declared outputs, or nothing when an error is reported."""
     try:
-        configuration = load_configuration(root, locate_configuration(root, config))
+        configuration = _configuration(root, config)
         result = build_outputs(configuration)
     except OnomasiaError as error:
         typer.echo(f"error: {error}", err=True)
