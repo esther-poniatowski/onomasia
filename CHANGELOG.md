@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Dependencies
+
+- Merismos at commit `85e62c1`, which reads Markdown as observed in Obsidian 1.15.0, and Anagraphe
+  at commit `de023eb`, which pins the same Merismos.
+
 ### Added
 
 - A lexical rule and a notation entry may carry `metadata`, as a term does.
