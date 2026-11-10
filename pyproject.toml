@@ -37,9 +37,9 @@ urls = {homepage = "https://github.com/esther-poniatowski/onomasia"}
 requires-python = ">=3.12"
 
 dependencies = [
-    "anagraphe @ git+https://github.com/esther-poniatowski/anagraphe.git@37b4fa469482e0af95a4db84c7158ac19656b16e",
+    "anagraphe @ git+https://github.com/esther-poniatowski/anagraphe.git@1388461620dc4f4ba8affbcde415e92dadd64c25",
     "jsonschema",
-    "merismos @ git+https://github.com/esther-poniatowski/merismos.git@506c2a1662620b5d29d4471117799ea1ef6d330f",
+    "merismos @ git+https://github.com/esther-poniatowski/merismos.git@feb6654e0f821d076798a81fa062639a4bd0affd",
     "pyyaml",
     "typer",
 ]
