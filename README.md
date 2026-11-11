@@ -56,6 +56,12 @@ The [guide](docs/guide.md) covers the checks, the other outputs, and the two por
 
 ---
 
+## Schema registry
+
+The [schema registry](specs/schema-registry.yml) maps each format whose schema Onomasia ships to that schema file. Kleisis generates the registry from the [resource record](specs/schema-resources.yml): run `kleisis materialize --root .` after a schema changes, and `kleisis check --root .` to confirm that the registry is current. A repository whose files declare an Onomasia format names Onomasia as a dependency in its own resource record, at a pinned commit, so that Ekphrasis validates those files in Obsidian.
+
+---
+
 ## Documentation
 
 The [documentation index](docs/_index.md) is the entry point.

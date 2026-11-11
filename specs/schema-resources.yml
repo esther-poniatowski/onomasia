@@ -1,0 +1,10 @@
+# Inputs of the schema closure of onomasia; generated files remain outside this record.
+_schema: kleisis:schema-resources@2
+
+paths:
+  owned_schemas: src/onomasia/data/schemas
+
+exports:
+  - onomasia:glossary@1
+  - onomasia:notation@1
+  - onomasia:overlay@1
