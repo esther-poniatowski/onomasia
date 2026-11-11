@@ -27,14 +27,11 @@ from typing import Iterable, Iterator, Mapping, Protocol
 
 import yaml
 
-from .configuration import RecordLocations
+from .configuration import FORMAT_KEY, RecordLocations
 from .issues import IssueSink
 from .records.model import Record, RecordKind
 from .records.parsing import parse_record
 from .records.validation import SchemaValidator
-
-FORMAT_KEY = "_schema"
-"""Key holding the schema identifier of a record."""
 
 
 @dataclass(frozen=True)

@@ -93,7 +93,7 @@ def _consumer(
 ) -> Path:
     """Write a consumer with its records, its denotes targets and its outputs."""
     configuration = {
-        "schema_version": 1,
+        "_schema": "onomasia:configuration@1",
         "records": {
             "glossaries": ["glossary.yml"],
             "notations": ["notation.yml"],

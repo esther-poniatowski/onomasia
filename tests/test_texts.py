@@ -28,7 +28,7 @@ ANAGRAPHE = {
 }
 
 CONFIGURATION = {
-    "schema_version": 1,
+    "_schema": "onomasia:configuration@1",
     "records": {
         "glossaries": ["records/*.glossary.yml"],
         "notations": ["records/*.notation.yml"],

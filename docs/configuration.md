@@ -19,7 +19,7 @@ Each consumer holds its configuration in the file `onomasia.yml`, either in the 
 The packaged file `data/defaults.yml` supplies the vocabulary, the typography and the severities of a consumer that declares none. Onomasia stops at the first invalid value of the configuration, and names its key path. The following values are rejected:
 
 - a file lying outside the root of the consumer;
-- a `schema_version` other than 1;
+- a `_schema` absent or other than `onomasia:configuration@1`, or a retired `schema_version`;
 - an unknown key, a missing required key, or a value of the wrong type;
 - a `default_status` absent from the statuses;
 - `digit_names` other than ten words of letters;
@@ -29,7 +29,7 @@ The packaged file `data/defaults.yml` supplies the vocabulary, the typography an
 
 ## Keys
 
-The file declares `schema_version: 1`, then six optional sections, whose keys are the following:
+The file names its format under `_schema: onomasia:configuration@1`, as its first key, then declares six optional sections, whose keys are the following:
 
 | Key | Content | Default |
 | --- | --- | --- |
@@ -80,7 +80,7 @@ The [contracts](contracts.md) specify each product.
 The following configuration reads the records of a vault, and writes a package and a lookup. The configuration also leaves the archive of the vault out, and turns one check off:
 
 ```yaml
-schema_version: 1
+_schema: onomasia:configuration@1
 records:
   glossaries: ["**/glossary.yml"]
   notations: ["**/notation.yml"]

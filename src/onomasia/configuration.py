@@ -5,8 +5,8 @@ severity of each check.
 The file lies at `config/tools/onomasia.yml` or at `onomasia.yml` below the root, and both places
 holding a file is an error, unless another file is named. The root of a command is the folder given
 by `--root`, else by the variable `ONOMASIA_ROOT`, else the nearest folder, from the current one
-upwards, that holds the file at one of its places, else the current folder. The file declares its
-`schema_version`, then six sections, each optional:
+upwards, that holds the file at one of its places, else the current folder. The file names its
+format under `_schema`, then declares six sections, each optional:
 
 - `records`, the globs of the records of each format, relative to the root, and the paths
   excluded from every glob;
@@ -56,8 +56,14 @@ from .reading import Fields
 from .texts.prose import kinds_problem
 from .records.model import RecordKind
 
-SCHEMA_VERSION = 1
-"""Version of the layout of `onomasia.yml` read by this release."""
+FORMAT_KEY = "_schema"
+"""Key holding the format identifier of a file of Onomasia, the configuration or a record."""
+
+CONFIGURATION_FORMAT = "onomasia:configuration@1"
+"""Format identifier of `onomasia.yml` read by this release."""
+
+RETIRED_FORMAT_KEY = "schema_version"
+"""Key that named the version of the layout before `_schema`, rejected with its replacement."""
 
 CONFIGURATION_FILE = "onomasia.yml"
 """Name of the configuration file."""
@@ -444,12 +450,22 @@ def _texts(root: Path, fields: Fields | None) -> Texts | None:
     return texts
 
 
+def _require_format(fields: Fields) -> None:
+    """Require the format of the configuration, or raise an error naming the value to write."""
+    instruction = f"write {FORMAT_KEY}: {CONFIGURATION_FORMAT} as the first key"
+    if fields.present(RETIRED_FORMAT_KEY):
+        raise fields.error(RETIRED_FORMAT_KEY, f"retired; {instruction}")
+    if not fields.present(FORMAT_KEY):
+        raise fields.error(FORMAT_KEY, f"absent; {instruction}")
+    declared = fields.value(FORMAT_KEY)
+    if declared != CONFIGURATION_FORMAT:
+        raise fields.error(FORMAT_KEY, f"{declared}, expected {CONFIGURATION_FORMAT}")
+
+
 def _resolve(root: Path, resource: str, data: Mapping[str, object], origin: str) -> Configuration:
     """Resolve a configuration mapping, the packaged vocabulary standing for an absent section."""
     fields = Fields(data, "", origin)
-    version = fields.integer("schema_version")
-    if version != SCHEMA_VERSION:
-        raise fields.error("schema_version", f"version {version}, expected {SCHEMA_VERSION}")
+    _require_format(fields)
     configuration = Configuration(
         root=root,
         resource=resource,
@@ -562,6 +578,6 @@ def default_configuration(root: Path) -> Configuration:
     return _resolve(
         root.resolve(),
         CONFIGURATION_FILE,
-        {"schema_version": SCHEMA_VERSION},
+        {FORMAT_KEY: CONFIGURATION_FORMAT},
         "default configuration",
     )

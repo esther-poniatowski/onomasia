@@ -16,7 +16,7 @@ from onomasia.issues import Severity, default_severities
 from onomasia.service import check_records
 
 CONFIGURATION = {
-    "schema_version": 1,
+    "_schema": "onomasia:configuration@1",
     "records": {
         "glossaries": ["**/glossary*.yml"],
         "notations": ["**/notation*.yml"],
@@ -503,7 +503,8 @@ def test_overlay_changes_only_bodies_and_classes(tmp_path: Path) -> None:
 @pytest.mark.parametrize(
     ("change", "message"),
     [
-        ({"schema_version": 2}, "schema_version"),
+        ({"_schema": "onomasia:configuration@2"}, "_schema"),
+        ({"schema_version": 1}, "schema_version: retired; write _schema"),
         ({"checks": {"absent-check": "off"}}, "absent-check: unknown key"),
         ({"checks": {"form-collision": "loud"}}, "expected error, warning or off"),
         ({"records": {"lexicons": ["*.yml"]}}, "records.lexicons: unknown key"),

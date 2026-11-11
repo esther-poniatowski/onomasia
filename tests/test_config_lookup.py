@@ -16,9 +16,9 @@ from onomasia.cli import app
 from onomasia.configuration import find_root, locate_configuration
 from onomasia.errors import ConfigurationError
 
-VALID = "schema_version: 1\n"
+VALID = "_schema: onomasia:configuration@1\n"
 """Configuration that `onomasia check` reads with no error."""
-INVALID = "schema_version: 99\n"
+INVALID = "_schema: onomasia:configuration@99\n"
 """Configuration that `onomasia check` rejects, with exit status 2."""
 NESTED = Path("config/tools/onomasia.yml")
 
@@ -92,7 +92,7 @@ def test_root_is_found_upwards_from_the_current_folder(
     monkeypatch.chdir(root / "notes/deep")
     result = CliRunner().invoke(app, ["check"])
     assert result.exit_code == 2
-    assert "schema_version" in result.output
+    assert "_schema" in result.output
 
 
 def test_root_is_read_from_the_environment_below_the_option(tmp_path: Path) -> None:
@@ -101,3 +101,26 @@ def test_root_is_read_from_the_environment_below_the_option(tmp_path: Path) -> N
     assert _check(env={"ONOMASIA_ROOT": str(valid)}) == 0
     assert _check(env={"ONOMASIA_ROOT": str(invalid)}) == 2
     assert _check("--root", str(valid), env={"ONOMASIA_ROOT": str(invalid)}) == 0
+
+
+@pytest.mark.parametrize(
+    ("text", "message"),
+    [
+        ("records: {}\n", "write _schema: onomasia:configuration@1"),
+        ("_schema: onomasia:configuration@9\n", "expected onomasia:configuration@1"),
+        ("_schema: 1\n", "expected onomasia:configuration@1"),
+        ("schema_version: 1\n", "schema_version: retired; write _schema: onomasia:configuration@1"),
+    ],
+)
+def test_a_file_of_another_format_stops_with_status_2(
+    tmp_path: Path, text: str, message: str
+) -> None:
+    root = _consumer(tmp_path, {"onomasia.yml": text})
+    result = CliRunner().invoke(app, ["check", "--root", str(root)])
+    assert result.exit_code == 2
+    assert message in result.output
+
+
+def test_the_identifier_of_the_format_is_accepted(tmp_path: Path) -> None:
+    root = _consumer(tmp_path, {"onomasia.yml": "_schema: onomasia:configuration@1\n"})
+    assert CliRunner().invoke(app, ["check", "--root", str(root)]).exit_code == 0

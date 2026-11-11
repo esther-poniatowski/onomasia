@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **Breaking:** `onomasia.yml` names its format under the key `_schema`, as its first key, with the
+  value `onomasia:configuration@1`. The key `schema_version` is retired: the command stops with
+  status 2 and names the value to write. A file without the key, or with another value, stops the
+  same way.
 - A term or a notation entry names its replacement under `superseded_by`, formerly
   `replaced_by`, and the packaged status requiring a replacement is `superseded`, formerly
   `deprecated`, as the vault and its tools name them.

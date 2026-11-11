@@ -38,7 +38,7 @@ Pre-alpha. The package checks glossaries, notations and overlays, and builds six
 Saved as `onomasia.yml` in `config/tools/` below the root of a consumer, or at that root, the following configuration reads the notations of the consumer and writes a LaTeX package for its notation `mixture`:
 
 ```yaml
-schema_version: 1
+_schema: onomasia:configuration@1
 records:
   notations: ["**/notation.yml"]
 build:
