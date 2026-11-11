@@ -22,7 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ### Dependencies
 
 - Merismos at commit `feb6654`, which reads Markdown as observed in Obsidian 1.15.0, and Anagraphe
-  at its release `v0.2.2`, which pins the same Merismos.
+  at commit `97a5850`, after its release `v0.3.1`, which pins the same Merismos and reads its
+  configuration under the key `_schema`.
 
 ### Added
 

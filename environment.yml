@@ -25,6 +25,6 @@ dependencies:
   # conda dependency cannot name.
   - pip
   - pip:
-      - anagraphe @ git+https://github.com/esther-poniatowski/anagraphe.git@v0.2.2
+      - anagraphe @ git+https://github.com/esther-poniatowski/anagraphe.git@97a5850c2298bb3000e9f52c6426d75da7826037
       - merismos @ git+https://github.com/esther-poniatowski/merismos.git@feb6654e0f821d076798a81fa062639a4bd0affd
 variables:

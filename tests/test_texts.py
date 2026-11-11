@@ -16,7 +16,7 @@ from onomasia.errors import ConfigurationError
 from onomasia.service import check_records
 
 ANAGRAPHE = {
-    "schema_version": 2,
+    "_schema": "anagraphe:configuration@2",
     "bindings": {
         "index": "_index.md",
         "roles": {
