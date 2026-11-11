@@ -19,6 +19,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - `entry-status` also reports the printed body of a reported entry, with the replacement.
 - A printed body opening on a letter matches only where no letter or backslash precedes it.
 
+### Security
+
+- The field `sources` of a built document, and the header of a generated package, name the remote
+  of the repository without its user information. A remote such as
+  `https://user:token@host/repo.git` is written `https://host/repo.git`, and the user of a remote
+  in the form `user@host:path` is dropped, so that a committed document holds no credential.
+
 ### Dependencies
 
 - Merismos at commit `feb6654`, which reads Markdown as observed in Obsidian 1.15.0, and Anagraphe

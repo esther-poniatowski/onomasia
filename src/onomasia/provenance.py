@@ -13,12 +13,22 @@ ProvenanceProvider
     Protocol of a provider of the sources of a root.
 GitProvenance
     Provider reading the repository holding the root.
+
+Functions
+---------
+public_location(url) -> str
+    The location of a repository without the user information of its URL.
 """
 
 from dataclasses import dataclass
 from pathlib import Path
+import re
 import subprocess
 from typing import Protocol
+from urllib.parse import urlsplit, urlunsplit
+
+SCP_USER = re.compile(r"\A[^@/:]+@(?=[^/:]+:)")
+"""User of a remote written in the form of `scp`, `user@host:path`, which has no scheme."""
 
 
 @dataclass(frozen=True)
@@ -29,7 +39,8 @@ class Source:
     Attributes
     ----------
     repository : str
-        Address of the repository, or its path when it has no remote.
+        Address of the repository without its user information, or its path when it has no
+        remote.
     commit : str
         Full identifier of the commit checked out.
     dirty : bool
@@ -48,6 +59,30 @@ class Source:
     def to_data(self) -> dict[str, object]:
         """Return the plain-data form of the common field `sources` of a contract."""
         return {"repository": self.repository, "commit": self.commit, "dirty": self.dirty}
+
+
+def public_location(url: str) -> str:
+    """
+    Return the location `url` of a repository without its user information.
+
+    A remote may carry a user and a token, as `https://user:token@host/path`, which a generated
+    document must not publish. A URL with a scheme keeps its host after the last `@`, and a remote
+    in the form of `scp` drops its user.
+
+    Examples
+    --------
+    >>> public_location("https://user:token@github.com/org/repo.git")
+    'https://github.com/org/repo.git'
+    >>> public_location("git@github.com:org/repo.git")
+    'github.com:org/repo.git'
+    >>> public_location("/path/to/repo")
+    '/path/to/repo'
+    """
+    parts = urlsplit(url)
+    if parts.scheme and parts.netloc:
+        host = parts.netloc.rpartition("@")[2]
+        return urlunsplit((parts.scheme, host, parts.path, parts.query, parts.fragment))
+    return SCP_USER.sub("", url)
 
 
 class ProvenanceProvider(Protocol):
@@ -76,6 +111,7 @@ class GitProvenance:
         commit = git("rev-parse", "HEAD")
         if commit is None:
             return ()
-        repository = git("config", "--get", "remote.origin.url") or str(root)
+        remote = git("config", "--get", "remote.origin.url")
+        repository = public_location(remote) if remote else str(root)
         status = git("status", "--porcelain")
         return (Source(repository, commit, bool(status)),)

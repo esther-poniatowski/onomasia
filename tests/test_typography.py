@@ -7,6 +7,8 @@ the issue of its check, and a build reporting an error writes nothing.
 """
 
 import importlib.util
+import shutil
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -155,6 +157,27 @@ def test_documents_follow_their_contracts(tmp_path: Path, path: str, contract: s
     data = yaml.safe_load((root / "out" / path).read_text(encoding="utf-8"))
     assert list(SchemaValidator().contract_errors(CONTRACT_SCHEMAS[contract], data)) == []
     assert data["contract"] == contract and data["sources"] == [SOURCE.to_data()]
+
+
+@pytest.mark.skipif(shutil.which("git") is None, reason="the command git is absent")
+def test_sources_of_a_build_publish_no_user_information(tmp_path: Path) -> None:
+    """A build reading its Git repository writes the remote without its user and its token."""
+    root = _consumer(tmp_path, {})
+    identity = ["-c", "user.name=Test", "-c", "user.email=test@example.org"]
+    for arguments in (
+        ["init", "--quiet"],
+        ["remote", "add", "origin", "https://user:secret-token@example.org/vault.git"],
+        ["add", "."],
+        [*identity, "-c", "commit.gpgsign=false", "commit", "--quiet", "-m", "records"],
+    ):
+        subprocess.run(["git", "-C", str(root), *arguments], check=True, capture_output=True)
+    result = build_outputs(load_configuration(root, root / "onomasia.yml"))
+    assert result.written
+    data = yaml.safe_load((root / "out" / "table.yml").read_text(encoding="utf-8"))
+    [source] = data["sources"]
+    assert source["repository"] == "https://example.org/vault.git"
+    leaked = [path.name for path in result.written if "secret-token" in path.read_text()]
+    assert leaked == []
 
 
 def test_term_table_writes_described_forms_without_their_descriptions(tmp_path: Path) -> None:
