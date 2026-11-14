@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   `onomasia:glossary@1`, `onomasia:notation@1` and `onomasia:overlay@1`, so that a repository can
   import their schemas at a pinned commit and Ekphrasis can validate its glossaries, notations and
   overlays.
+- The schemas of `onomasia:glossary@1` and `onomasia:notation@1` declare `x-identifier: id`, so
+  that Anagraphe reads the identifier of a glossary or a notation from its root key `id`, and a
+  logical target can name it. The annotation changes no valid record.
 
 ### Changed
 

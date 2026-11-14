@@ -5,6 +5,8 @@ $id: notation.schema.yml
 title: Notation
 type: object
 additionalProperties: false
+# The identifier of the record, which a logical target of Anagraphe names.
+x-identifier: id
 required: [_schema, id]
 properties:
   _schema: {const: 'onomasia:notation@1'}

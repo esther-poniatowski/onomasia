@@ -5,6 +5,8 @@ $id: glossary.schema.yml
 title: Glossary
 type: object
 additionalProperties: false
+# The identifier of the record, which a logical target of Anagraphe names.
+x-identifier: id
 required: [_schema, id]
 properties:
   _schema: {const: 'onomasia:glossary@1'}
