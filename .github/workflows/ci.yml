@@ -17,8 +17,11 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install dependencies
+        # Anagraphe and Merismos are published on no index that pip reads, so pyproject.toml declares
+        # a range for each, and environment.yml pins the exact Git commits that the tests use.
         run: |
           python -m pip install --upgrade pip
+          pip install $(grep -oE 'git\+https://[^ ]+' environment.yml)
           pip install -e .
           pip install black pylint mypy pytest pytest-cov types-PyYAML
       - name: Check formatting (black)
