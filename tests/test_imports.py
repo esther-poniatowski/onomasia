@@ -662,7 +662,7 @@ def test_denotes_is_normalized_by_the_repository_holding_the_notation(tmp_path: 
         },
     }
     targets = {
-        "contract": "onomasia:denotes-targets@2",
+        "contract": "onomasia:denotes-targets@3",
         "sources": [],
         "targets": [
             {

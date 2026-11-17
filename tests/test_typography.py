@@ -76,7 +76,7 @@ GLOSSARY = {
 }
 
 TARGETS = {
-    "contract": "onomasia:denotes-targets@2",
+    "contract": "onomasia:denotes-targets@3",
     "sources": [],
     "targets": [
         {"target": _normalized("sum"), "arity": 2, "binder": 1},
@@ -242,6 +242,19 @@ def test_macro_table_writes_the_normalized_target_or_null(tmp_path: Path) -> Non
         for entry in yaml.safe_load((root / "out" / "table.yml").read_text())["entries"]
     }
     assert entries["w-ff"] == _normalized("weights") and entries["lam"] is None
+
+
+def test_denotes_target_without_repository_names_a_unit_of_the_consumer(tmp_path: Path) -> None:
+    """A denotes target without repository is normalized by the repository of the consumer, so it
+    matches the unit of an entry."""
+    targets = dict(TARGETS, targets=[{"target": _unit("sum"), "arity": 2, "binder": 1}])
+    root = _consumer(tmp_path, {"targets.yml": targets})
+    _build(root)
+    entries = {
+        entry["id"]: entry
+        for entry in yaml.safe_load((root / "out" / "table.yml").read_text())["entries"]
+    }
+    assert (entries["sum-op"]["arity"], entries["sum-op"]["binder"]) == (2, 1)
 
 
 def test_target_with_its_repository_written_matches_the_same_unit(tmp_path: Path) -> None:

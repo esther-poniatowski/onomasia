@@ -324,7 +324,11 @@ def _assemble(
     validator = SchemaValidator()
     composer = _checked(configuration, source, sink, validator, provider)
     signatures = read_signatures(
-        configuration.build.denotes_targets, configuration.root, validator, sink
+        configuration.build.denotes_targets,
+        configuration.root,
+        validator,
+        sink,
+        repository=consumer_repository(configuration.root),
     )
     builder = _Builder(configuration, composer, signatures, sources, sink)
     contents = [
