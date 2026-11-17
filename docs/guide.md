@@ -36,7 +36,7 @@ notes/notation.yml#/entries/lam: warning undeclared-entry: the entry denotes no 
 0 errors, 1 warnings
 ```
 
-The line opens on the resource and the JSON Pointer of the offending value, then gives the severity, the check and the message. The resource is the path of the offending file relative to the root: a record, an input document, or the configuration for an issue of an output. A record of another repository is located as `repository:path`. The last line counts the errors and the warnings. The command exits with one of three statuses:
+The line opens on the resource and the JSON Pointer of the offending value, then gives the severity, the check and the message. The resource is the path of the offending file relative to the root: a record, an input document, or the configuration for an issue of an output. A record of another repository is located as `repository:path`: the identifier of its repository, a colon, and the path of the record within that repository. The path is read at the state selected by the consumer. Only the report of a run writes this form. The documents of the contracts name the repository and the commit in fields of their own. The last line counts the errors and the warnings. The command exits with one of three statuses:
 
 - 0 when no error is reported;
 - 1 when an error is reported;
@@ -106,7 +106,7 @@ figure, axis = plt.subplots()
 axis.set_xlabel("$" + expand(r"\onowOut") + "$")
 ```
 
-The module fixes the typography of the notation at the time of its build. Its constant `SOURCES` records the commit of the records, and whether the working tree held uncommitted changes.
+The module fixes the typography of the notation at the time of its build. Its constant `SOURCES` records the commit of the records, and whether the working tree held uncommitted changes. Its constant `INPUT_DATA` records each record of another repository imported into the notations, with its commit and its digest.
 
 ## Supplying records from another source
 

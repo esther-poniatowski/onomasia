@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   an identifier, or by a logical target of Anagraphe `{repository, id}` for a record of another
   repository. The target form declares `x-target-contract` with the contract of the importing
   record. The schema registry exports both new versions.
+- `onomasia:overlay@2`, whose key `overlays` names the notation to change by an identifier, or by a
+  logical target `{repository, id}`. The schema declares `x-target-contract: ['onomasia:notation']`
+  at that key. The composer reads that notation as it reads the source of an import. An output
+  names its notations by their identifiers in the consumer. Therefore, an output naming an overlay
+  of a notation of another repository is reported as `unresolved-output`. The schema registry
+  exports `onomasia:overlay@2`, and `onomasia:overlay@1` stays readable.
 - In `onomasia:notation@2`, `denotes` holds a logical target naming a unit. Onomasia normalizes the
   target by the repository holding the notation. A text under `denotes` of `onomasia:notation@1`
   still declares its entry, and carries no target.
@@ -26,6 +32,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   and 4 MiB of record bytes by default. An exceeded limit is reported as `import-limit`.
 - The optional block `inputs` of each generated document lists the records of other repositories
   imported into its records, each with its commit and its `sha256` digest.
+- The LaTeX package and the MathJax preamble state one comment line per input after their sources,
+  written `% repository commit id sha256`. The Python expander holds the inputs in its constant
+  `INPUTS`.
+- In `onomasia:term-table@1`, the `gloss` of a term read from another repository gains the
+  optional fields `repository` and `commit`. Its `resource` is the path of the record within that
+  repository.
 - The check `unnormalized-target` reports a unit target naming no repository, in a repository
   declaring no identifier.
 - `check_records` and `build_outputs` accept a state provider of Anagraphe under the keyword
@@ -47,6 +59,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   the repository, the identifier and the unit of the target.
 - The schemas of `onomasia:glossary@1` and `onomasia:notation@1` move to `glossary.v1.schema.yml`
   and `notation.v1.schema.yml`; Onomasia still reads both versions.
+- The schema of `onomasia:overlay@1` moves to `overlay.v1.schema.yml`.
 - **Breaking:** `onomasia.yml` names its format under the key `_schema`, as its first key, with the
   value `onomasia:configuration@1`. The key `schema_version` is retired: the command stops with
   status 2 and names the value to write. A file without the key, or with another value, stops the

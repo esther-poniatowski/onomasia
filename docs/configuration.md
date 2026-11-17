@@ -77,7 +77,7 @@ The section `resolution` of that configuration declares the repositories that ar
 Each output names its product under `product` and its file under `path`, relative to the root. The other keys of an output depend on its product:
 
 - a term table names its glossary under `glossary`;
-- every other product names its notations under `notations`, composed in order, and may name overlays under `overlays`, each overlay changing one of those notations.
+- every other product names its notations under `notations`, composed in order, and may name overlays under `overlays`, each overlay changing one of those notations. An output naming an [overlay of a notation of another repository](formats.md#^remote-overlays) is reported as `unresolved-output`, and is not built.
 
 The six products are the following:
 

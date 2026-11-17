@@ -21,7 +21,7 @@ Every record names its format under the key `_schema`, and its identifier under 
 
 - `onomasia:glossary@1` and `onomasia:glossary@2`;
 - `onomasia:notation@1` and `onomasia:notation@2`;
-- `onomasia:overlay@1`.
+- `onomasia:overlay@1` and `onomasia:overlay@2`.
 
 A record matched by the globs of one format but naming another is rejected by the check `wrong-format`. An identifier is written in lowercase kebab case, such as `w-out`: groups of letters and digits, joined by single hyphens. Two kinds of uniqueness are required:
 
@@ -165,12 +165,14 @@ The check `body-collision` reports two entries of one composed notation printing
 
 ## Overlays
 
-An overlay, `onomasia:overlay@1`, names under `overlays` the notation to change. An overlay imports no record. Instead, Onomasia applies the overlay to the composed notation, by identifier:
+An overlay, `onomasia:overlay@2`, names under `overlays` the notation to change, by an identifier or by a logical target `{repository, id}`, as the key `from` of an [import](#^across) does. The schema declares `x-target-contract: ['onomasia:notation']` at the key `overlays`. In `onomasia:overlay@1`, `overlays` admits an identifier only. An overlay imports no record. Instead, Onomasia applies the overlay to the composed notation, by identifier:
 
 - a class of the overlay replaces the class of the same identifier as a whole, so a class given without `template` removes the template;
 - an entry of the overlay changes the body, the base or the class of the entry of the same identifier, and a new body or a new base replaces both former values.
 
 The checks `unresolved-overlay` and `unknown-override` report an overlay naming an absent notation, class or entry. Besides these fields and `metadata`, the schema of an overlay admits no field. Therefore, every macro name, argument and target of the notation holds under every overlay. As a result, a note written with the macro names of the notation prints under any overlay. An output applies its overlays in the order of its list `overlays`, and each overlay changes the notation left by the earlier ones. ^overlays
+
+Onomasia reads the notation named by an overlay as it reads the source of an import, with the same findings of the resolver and the same [limits](#^limits). The closure of an overlay holds the overlay and the closure of its notation. Each finding is reported at the key `overlays`. A notation that no repository provides is reported as `unresolved-overlay`. A document built under an overlay lists in `inputs` the records of other repositories imported by the notation that the overlay changes. An output names its notations by their identifiers in the consumer. Therefore, an overlay of a notation of another repository is checked with the records. An output naming such an overlay is reported as `unresolved-output`. ^remote-overlays
 
 ## Statuses
 

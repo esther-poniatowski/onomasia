@@ -105,7 +105,9 @@ The term table gives Hermeneia the terms of one composed glossary, named under `
 - `id`, its identifier;
 - `forms`, its label, its other forms and the labels of its alternatives, each form written as a string or as `{regex: …}`, without the description given by its record;
 - `status`, its status, the default status standing for an absent one;
-- `gloss`, the text of its gloss with the `resource` declaring the term and the JSON Pointer of the gloss. A term of another repository names its resource as `repository:path`.
+- `gloss`, the text of its gloss with the `resource` declaring the term and the JSON Pointer of the gloss. For a term of the consumer, the resource is the path of its record relative to the root. For a term read from another repository, the resource is the path of its record within that repository.
+
+A term read from another repository also states, in its `gloss`, the `repository` of its record and the `commit` of the state read. The schema admits the two fields only together. A term of the consumer omits both.
 
 With this location, Hermeneia reports a defect of a gloss at its declaration. ^term-table
 
@@ -115,9 +117,9 @@ Each serialization renders one macro table, and defines each macro once. The thr
 
 - **LaTeX package**: each macro becomes `\newcommand{\name}[n]{body}`, or `\newcommand{\name}[n][]{body}` when it takes the entry argument, `n` being its number of parameters. The part `[n]` is left out when `n` is 0. Since `\newcommand` refuses an existing command, a declared name overwriting a command stops the build of the document.
 - **MathJax preamble**: the same definitions, without the lines `\NeedsTeXFormat` and `\ProvidesPackage`, for a preamble plugin of Obsidian.
-- **Python expander**: a generated module without dependencies. Its function `expand` replaces each macro of a mathtext string by its body, its arguments substituted, until no macro remains. A mandatory argument is a braced group, a control sequence or one character, after optional spaces. The entry argument stands between brackets after the name. The constant `SOURCES` of the module holds the sources of the table.
+- **Python expander**: a generated module without dependencies. Its function `expand` replaces each macro of a mathtext string by its body, its arguments substituted, until no macro remains. A mandatory argument is a braced group, a control sequence or one character, after optional spaces. The entry argument stands between brackets after the name. The constant `SOURCES` of the module holds the sources of the table. The constant `INPUTS` holds the [inputs](#^inputs) of the table, each a mapping `{repository, commit, id, sha256}`.
 
-The package and the preamble state their sources in their first line, a comment reading "no recorded source" when `sources` is empty. ^serializations
+The package and the preamble state their sources in their first line, a comment reading "no recorded source" when `sources` is empty. One comment line per input follows, written `% repository commit id sha256`. The input lines follow the order of the repository, then the commit, then the identifier. When the notations of a table import from no other repository, the package and the preamble hold no input line. ^serializations
 
 ## Versioning
 
