@@ -37,7 +37,11 @@ Anagraphe reads one verified record for Onomasia, through its [record resolver](
 
 **An unread source as an error.** Onomasia reports each finding of the resolver at the key `from` of its import, under the kind of that finding. Every finding that leaves a source unread is an error. Without its source, the composition lacks entries, so the checks of the consumer run on a partial glossary. Therefore, the gate of a host fetches the states first, with `anagraphe states fetch`. ^unread
 
-**The receipt in the generated documents.** Each generated document holds an optional block `inputs` beside its block `sources`. The block lists each imported record of another repository with its repository, its commit, its identifier and the `sha256` digest of its bytes. The entries follow the order of `(repository, commit, id)`. An optional block keeps the version of the contract of the document. ^receipt
+**The receipt in the generated documents.** Each generated document holds an optional block `inputs` beside its block `sources`. The block lists each imported record of another repository with its repository, its commit, its identifier and the `sha256` digest of its bytes. The entries follow the order of `(repository, commit, id)`. An optional block keeps the version of the contract of the document. The LaTeX package, the MathJax preamble and the Python expander state the same inputs after their sources. ^receipt
+
+**The location of a record of another repository.** When an output locates a record of another repository, it states the path of the record within its own repository, with the repository and the commit in fields of their own. In the term table, the gloss of such a term holds `resource`, `repository` and `commit`. No output encodes a repository and a path in one string. ^location
+
+**Overlays across repositories.** In `onomasia:overlay@2`, the key naming the notation that an overlay changes admits a logical target, typed by `x-target-contract` with `onomasia:notation`. The composer reads that notation as the source of an import, under the same keys, limits, findings and receipt. ^overlays
 
 **Limits set by the consumer.** A closure holds at most 8 levels of imports, 64 records and 4 MiB of record bytes by default. The configuration of the consumer may change each limit under its key `imports`, and imported content cannot. An exceeded limit is reported as `import-limit`. Beyond the depth limit, the composer reads no further import of the branch. A source whose closure exceeds the record or the byte limit stays out of the composition; that source is read first, which stays bounded since its own closure obeys the same limits. ^limits
 
@@ -69,4 +73,4 @@ Anagraphe reads one verified record for Onomasia, through its [record resolver](
 ## Open points
 
 - The authorized bundle of a closure waits on the task `record-state-bundle` of Geonexus. A host without access to a private source needs it.
-- The overlays of a notation follow the same form once `onomasia:overlay` admits a target.
+- A build output names its notations by identifiers of the consumer, so no output applies an overlay of a notation of another repository yet. Such an overlay is checked with the records, and an output naming it is reported as `unresolved-output`. The key `notations` of an output would admit a target once a consumer needs it.
