@@ -33,4 +33,4 @@ An entry of `onomasia:notation@1` names its unit under `denotes`, as a text. [AD
 
 ## Open points
 
-- Gnomon generates the denotes targets under its task `denotes-targets`, in the form of `onomasia:denotes-targets@2`.
+- Gnomon writes the denotes targets in the form of `onomasia:denotes-targets@2`, with its command `gnomon denotes-targets`. A repository reads them once its configuration of Onomasia names the generated file under `build.denotes_targets`, and no repository names one yet.
