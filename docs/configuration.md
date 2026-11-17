@@ -7,14 +7,15 @@ aliases:
 ---
 # Configuration
 
-Each consumer holds its configuration in the file `onomasia.yml`, either in the folder `config/tools/` below its root or at its root. Without the option `--config`, Onomasia reads the one of these two files that exists, and stops with an error naming both when both exist. The configuration holds every value needed by Onomasia from the consumer, and its six sections answer six questions:
+Each consumer holds its configuration in the file `onomasia.yml`, either in the folder `config/tools/` below its root or at its root. Without the option `--config`, Onomasia reads the one of these two files that exists, and stops with an error naming both when both exist. The configuration holds every value needed by Onomasia from the consumer, and its seven sections answer seven questions:
 
 - where the records of the consumer live;
 - which value sets the records use;
 - how the symbols are named and printed;
 - which outputs the build writes;
 - how severely each check reports;
-- which texts are checked, and how they are read.
+- which texts are checked, and how they are read;
+- how far the imports of a record may reach.
 
 The packaged file `data/defaults.yml` supplies the vocabulary, the typography and the severities of a consumer that declares none. Onomasia stops at the first invalid value of the configuration, and names its key path. The following values are rejected:
 
@@ -25,11 +26,13 @@ The packaged file `data/defaults.yml` supplies the vocabulary, the typography an
 - `digit_names` other than ten words of letters;
 - a check absent from the catalog, or a severity other than `error`, `warning` and `off`;
 - a path under `texts` naming no file, or a glob of `texts.paths` or `texts.exclude` leaving the root;
-- a kind of `texts.masked` or `texts.math` unknown to Merismos, or a syntax file unreadable by Merismos.
+- a kind of `texts.masked` or `texts.math` unknown to Merismos, or a syntax file unreadable by Merismos;
+- a limit under `imports` other than a positive integer;
+- two states selected for one repository, or a repository of the section `resolution` of Anagraphe naming the consumer itself, rejected at the first import into another repository.
 
 ## Keys
 
-The file names its format under `_schema: onomasia:configuration@1`, as its first key, then declares six optional sections, whose keys are the following:
+The file names its format under `_schema: onomasia:configuration@1`, as its first key, then declares seven optional sections, whose keys are the following:
 
 | Key | Content | Default |
 | --- | --- | --- |
@@ -54,8 +57,20 @@ The file names its format under `_schema: onomasia:configuration@1`, as its firs
 | `texts.math` | the kinds of Merismos holding the mathematics checked against the notations | inline and display mathematics |
 | `texts.determiners` | the words admitted, one at most, before the slot of a frame | `the`, `a`, `an`, `this`, `that`, `these`, `those`, `each`, `every`, `its`, `their` |
 | `texts.syntax` | the syntax file of Merismos for the Markdown dialect | the packaged Obsidian syntax |
+| `imports.depth` | the levels of imports below a record | 8 |
+| `imports.records` | the records of the closure of a record, the record itself included | 64 |
+| `imports.bytes` | the bytes of the documents of the records of a closure | 4194304, 4 MiB |
 
-A section `vocabulary` or `typography` replaces the packaged section as a whole. Therefore, a consumer declaring its own vocabulary declares all of it. The section `checks` changes only the checks named in it. In the section `texts`, each reading key left out takes its packaged value.
+A section `vocabulary` or `typography` replaces the packaged section as a whole. Therefore, a consumer declaring its own vocabulary declares all of it. The section `checks` changes only the checks named in it. In the section `texts`, each reading key left out takes its packaged value. In the section `imports`, each key left out takes its packaged value.
+
+## Imports across repositories
+
+An import naming a record of another repository is read through Anagraphe, as the [formats](formats.md#^across) state. Onomasia takes two values of Anagraphe from the consumer:
+
+- the identifier declared by the manifest `repository.yml` of the consumer, used to normalize the targets of its records;
+- the configuration of Anagraphe, named by `texts.anagraphe` when the consumer declares texts, and otherwise found at `config/tools/anagraphe.yml` or `anagraphe.yml` below the root.
+
+The section `resolution` of that configuration declares the repositories that are not submodules of the root, each with its commit and its remote. Its section `targets.records` names the schema registry of the consumer. The resolver reads the identifier and the contract of each record from the schemas of that registry. A consumer without that registry still reads its sources. Each such import is then reported by the warning `unverified-target`. The section `imports` of `onomasia.yml` sets the limits of each closure. Imported content cannot change them. ^imports
 
 ## Outputs
 
@@ -68,8 +83,8 @@ The six products are the following:
 
 | Product | Content |
 | --- | --- |
-| `macro-table` | the document `onomasia:macro-table@1` |
-| `macro-lookup` | the document `onomasia:macro-lookup@1` |
+| `macro-table` | the document `onomasia:macro-table@2` |
+| `macro-lookup` | the document `onomasia:macro-lookup@2` |
 | `term-table` | the document `onomasia:term-table@1` |
 | `latex-package` | a LaTeX package named after its file |
 | `mathjax-preamble` | the definitions of the macros, for a preamble plugin of Obsidian |

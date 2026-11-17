@@ -36,7 +36,7 @@ notes/notation.yml#/entries/lam: warning undeclared-entry: the entry denotes no 
 0 errors, 1 warnings
 ```
 
-The line opens on the resource and the JSON Pointer of the offending value, then gives the severity, the check and the message. The resource is the path of the offending file relative to the root: a record, an input document, or the configuration for an issue of an output. The last line counts the errors and the warnings. The command exits with one of three statuses:
+The line opens on the resource and the JSON Pointer of the offending value, then gives the severity, the check and the message. The resource is the path of the offending file relative to the root: a record, an input document, or the configuration for an issue of an output. A record of another repository is located as `repository:path`. The last line counts the errors and the warnings. The command exits with one of three statuses:
 
 - 0 when no error is reported;
 - 1 when an error is reported;
@@ -80,7 +80,18 @@ onomasia build --root path/to/vault
 
 The command prints its issues as `onomasia check` does, followed by one line `wrote <path>` per output written. Its exit statuses are those of `onomasia check`. When an error is reported, the build writes no output, so the former outputs stay whole. Otherwise, each output is replaced in one step. A check lowered to `warning` or `off` no longer stops the build: an output that cannot be built is then skipped, and the other outputs are written.
 
-Every output records the sources of its records, read from the Git repository holding the root. When the root lies outside every Git repository, the list of sources is empty.
+Every output records the sources of its records, read from the Git repository holding the root. When the root lies outside every Git repository, the list of sources is empty. A document also lists under `inputs` each record of another repository imported into its records, with its commit and its digest.
+
+## Importing from another repository
+
+A glossary or a notation of version 2 may import a record of another repository by a logical target, as the [formats](formats.md#^across) state. Onomasia reads the record at the state selected by the consumer, from the Git stores of the machine. A state missing from the machine is reported as the error `unreadable-target-state`, at the import. Therefore, a host fetches the states before its checks:
+
+```console
+anagraphe states fetch --root path/to/thesis
+onomasia check --root path/to/thesis
+```
+
+The cache of the fetched states lies under the cache folder of the user, unless the environment variable `ANAGRAPHE_CACHE` names another folder. A caller of `check_records` or `build_outputs` may pass its own state provider of Anagraphe under the keyword `provider`, such as an in-memory provider in a test. Without one, both functions read the Git stores, through `default_provider()`.
 
 ## Printing symbols in figures
 
@@ -113,7 +124,7 @@ from pathlib import Path
 from onomasia import RawDocument, RecordKind, check_records, default_configuration
 
 NOTATION = """
-_schema: onomasia:notation@1
+_schema: onomasia:notation@2
 id: store
 entries:
   lam: {gloss: a free parameter, body: '\\lambda'}

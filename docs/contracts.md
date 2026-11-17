@@ -11,10 +11,10 @@ The contracts of Onomasia fix the documents exchanged between Onomasia and the o
 
 | Contract | Producer | Consumers | Schema |
 | --- | --- | --- | --- |
-| `onomasia:denotes-targets@1` | Gnomon | Onomasia | `denotes-targets.schema.yml` |
+| `onomasia:denotes-targets@2` | Gnomon | Onomasia | `denotes-targets.schema.yml` |
 | `onomasia:scope-table@1` | Ekthesis | the checks of texts of Onomasia | `scope-table.schema.yml` |
-| `onomasia:macro-table@1` | Onomasia | Gnomon | `macro-table.schema.yml` |
-| `onomasia:macro-lookup@1` | Onomasia | the views of Gnomon, the documents rendered by Ekthesis | `macro-lookup.schema.yml` |
+| `onomasia:macro-table@2` | Onomasia | Gnomon | `macro-table.schema.yml` |
+| `onomasia:macro-lookup@2` | Onomasia | the views of Gnomon, the documents rendered by Ekthesis | `macro-lookup.schema.yml` |
 | `onomasia:term-table@1` | Onomasia | Hermeneia | `term-table.schema.yml` |
 
 ## Common fields
@@ -27,9 +27,20 @@ Every document names its contract under `contract`, and the records behind it un
 
 With these fields, a build records the commit of the notation used. When the root of the consumer lies in no Git repository, `sources` is empty. An input document breaking its schema is reported by the check `invalid-contract`, at the document itself. ^common-fields
 
+A document written by Onomasia also lists under `inputs` each record of another repository [imported](formats.md#^across) by its records. Each item of `inputs` describes one record by four fields:
+
+- `repository`, the identifier of its repository;
+- `commit`, the commit selected by the resolution context of the consumer;
+- `id`, the identifier of the record;
+- `sha256`, the digest of the bytes of the record at that commit.
+
+The items follow the order of the repository, then the commit, then the identifier. The block is optional. When the records of a document import from no other repository, the document omits the block. ^inputs
+
+Every document naming a unit names it by a *normalized* logical target `{repository, id, unit}`, with its repository filled in. A reader of the document may lie in another repository. ^targets
+
 ## Inputs
 
-The *denotes targets* list the [units](formats.md#^meaning) whose arguments Onomasia reads. Each unit declares three properties of its arguments:
+The *denotes targets* list the [units](formats.md#^meaning), each under `target` as a normalized target, with the arguments read by Onomasia. Onomasia matches a unit with an entry by their normalized targets, never by a text. Each unit declares three properties of its arguments:
 
 - `arity`, the number of its arguments;
 - `binder`, the position, counted from 1, of the argument binding a variable;
@@ -53,7 +64,7 @@ The macro table holds one macro per entry of the notations composed for an outpu
 | --- | --- |
 | `id` | the identifier of the entry |
 | `notation` | the record of the printed form: the notation declaring the entry, or the overlay that changed the entry |
-| `target` | the unit denoted by the entry, or null |
+| `target` | the normalized target of the unit denoted by the entry, or null for an entry naming no unit by a logical target |
 | `name`, `body` | the macro name, and the TeX printed |
 | `arity`, `binder` | the number of mandatory arguments, and the position of the binding argument |
 | `entry` | true when the macro takes the entry argument |
@@ -85,7 +96,7 @@ Both commands check these properties, and the [catalog of checks](formats.md#^ch
 
 ## Macro lookup
 
-The macro lookup names its notations under `notations`, and maps each unit, under `targets`, to the macro name to be written for it by a view. A view is a note generated from records. Such a note writes macro names instead of printed forms. An undeclared entry has no row. An overlay keeps every name and every target, so a lookup built under overlays is identical to the lookup of its notations. The check `ambiguous-target` guarantees one name per unit, since a view could not choose between two names. ^lookup
+The macro lookup names its notations under `notations`, and pairs each unit, under `targets`, with the macro name to be written for it by a view. A view is a note generated from records. Such a note writes macro names instead of printed forms. Each item of `targets` holds the normalized target of a unit under `target` and its name under `name`. The items follow the order of the repository, then the identifier, then the unit of the target. A reader builds its own map by comparing normalized targets. An entry without a target has no item. An overlay keeps every name and every target, so a lookup built under overlays is identical to the lookup of its notations. The check `ambiguous-target` guarantees one name per unit, since a view could not choose between two names. ^lookup
 
 ## Term table
 
@@ -94,7 +105,7 @@ The term table gives Hermeneia the terms of one composed glossary, named under `
 - `id`, its identifier;
 - `forms`, its label, its other forms and the labels of its alternatives, each form written as a string or as `{regex: …}`, without the description given by its record;
 - `status`, its status, the default status standing for an absent one;
-- `gloss`, the text of its gloss with the `resource` declaring the term and the JSON Pointer of the gloss.
+- `gloss`, the text of its gloss with the `resource` declaring the term and the JSON Pointer of the gloss. A term of another repository names its resource as `repository:path`.
 
 With this location, Hermeneia reports a defect of a gloss at its declaration. ^term-table
 

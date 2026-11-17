@@ -17,7 +17,13 @@ The [decision on formats and contracts](adr/formats-and-contracts.md) records th
 
 ## Records and identifiers
 
-Every record names its format under the key `_schema`, and its identifier under the key `id`. A record matched by the globs of one format but naming another is rejected by the check `wrong-format`. An identifier is written in lowercase kebab case, such as `w-out`: groups of letters and digits, joined by single hyphens. Two kinds of uniqueness are required:
+Every record names its format under the key `_schema`, and its identifier under the key `id`. The key `_schema` also names the version of the format. Onomasia validates each record against the schema of its version. Onomasia reads the following versions:
+
+- `onomasia:glossary@1` and `onomasia:glossary@2`;
+- `onomasia:notation@1` and `onomasia:notation@2`;
+- `onomasia:overlay@1`.
+
+A record matched by the globs of one format but naming another is rejected by the check `wrong-format`. An identifier is written in lowercase kebab case, such as `w-out`: groups of letters and digits, joined by single hyphens. Two kinds of uniqueness are required:
 
 - two records of one format must not share an identifier, as the check `duplicate-record` enforces;
 - two entries of one record must not share an identifier, even in two sections, as the check `duplicate-entry` enforces.
@@ -31,7 +37,7 @@ A glossary or a notation may import other records of its format, in two forms:
 - a *merged* import, `{from: id}`, adopts the entries of its source, possibly restricted by `only` or reduced by `except`, never both;
 - a *namespaced* import, `{from: id, as: alias}`, adopts no entry, and lets the record reference an entry of its source as `alias.id`.
 
-The identifiers under `only` and `except` select entries in every section of the source. Each source is first composed through its own imports. An entry declared by the importing record shadows a merged entry of the same identifier. The composition reports five defects of imports:
+The identifiers under `only` and `except` select entries in every section of the source. Each source is first composed through its own imports. An entry declared by the importing record shadows a merged entry of the same identifier. The composition reports six defects of imports:
 
 | Check | Defect |
 | --- | --- |
@@ -40,12 +46,56 @@ The identifiers under `only` and `except` select entries in every section of the
 | `unresolved-import-entry` | `only` or `except` names an entry absent from the source |
 | `import-conflict` | two merged sources supply one identifier with different entries |
 | `duplicate-alias` | two imports of one record bind the same alias |
+| `import-limit` | an import would take the closure of the record beyond a [limit](#^limits) |
 
 ^composition
 
+### Imports across repositories
+
+In `onomasia:glossary@2` and `onomasia:notation@2`, the key `from` takes one of two values: ^across
+
+- an identifier, naming a record of the repository holding the importing record;
+- a [logical target of Anagraphe](https://github.com/esther-poniatowski/anagraphe/blob/main/docs/guide/targets.md) `{repository, id}`, naming a record of any repository. A target without `repository` names a record of the repository holding the importing record. A target of an import never names a unit.
+
+The schema of each contract declares `x-target-contract` on this key, with the contract of the importing record. Therefore, the check of the targets of Anagraphe also verifies that the source exists and follows that contract. In version 1, `from` admits an identifier only. The following import adopts the glossary `base` of the repository `lexicon`, except its term `curve`:
+
+```yaml
+_schema: onomasia:glossary@2
+id: project
+imports:
+  - {from: {repository: lexicon, id: base}, except: [curve]}
+```
+
+The resolution context of the consumer selects the state of every repository reached by the imports. Each such repository is a submodule of the root of the consumer, or a repository declared under the key `resolution` of its [configuration of Anagraphe](configuration.md#^imports). Imported content supplies neither a state nor a remote. Inside a record of another repository, an identifier names a record of that repository, at the same state. A target inside that record names a repository of the context of the consumer. ^state
+
+Onomasia reads each record of another repository through the record resolver of Anagraphe. The resolver returns the bytes of the record, verified against the selected state, with their provenance. The composer keys each record by its repository, its commit and its identifier, and traverses the imports in their declared order. Two properties follow from these keys:
+
+- a record reached by several imports is read and composed once;
+- an import leading back to a record on its own path of imports is reported as `import-cycle`, across repositories as within one.
+
+Two distinct sources supplying one identifier with different entries are reported as `import-conflict`, as within one repository. ^closure
+
+Onomasia reports each finding of the resolver at the key `from` of its import, under the kind of that finding, such as `unknown-repository` or `unreadable-target-state`. A kind absent from the catalog of checks is reported as `unresolved-import`, its message opening on the kind. A finding is an error by default when it leaves the source unread, since the checks of the consumer would otherwise run on a partial composition. Three findings let the source be read, and are reported as warnings at most:
+
+- `renamed-repository`, for a retired identifier of a repository, followed to its successor;
+- `renamed-target`, for a retired identifier of a record, followed to its successor;
+- `unverified-target`, for a record read while the consumer lacks the schemas of its contract.
+
+The repository of a source lists the source in its record registry. When the state of that repository holds no registry, the source stays unread, and its `unverified-target` is an error.
+
+A record of another repository may break the schema of its format. Onomasia then reports each violation at the location of that record, written `repository:path` as in `lexicon:base.yml`, and reports its import as `unresolved-import`. The checks of the entries of a record run on the records of the consumer only, since a record of another repository is checked in its own repository. ^unread
+
+A closure holds a record and every record reached by its imports, of the consumer and of other repositories. The configuration of the consumer limits each closure under its key [`imports`](configuration.md#^imports):
+
+- `depth`, the levels of imports below the record, 8 by default;
+- `records`, the records of the closure, the record itself included, 64 by default;
+- `bytes`, the bytes of the documents of these records, 4 MiB by default.
+
+An import exceeding a limit is reported as `import-limit`, and nothing of its source enters the closure or the composition. An import beyond the limit of depth is not read. An import exceeding the limit of records or of bytes is detected once its source is composed, and the closure of that source is itself held within the limits. ^limits
+
 ## Glossaries
 
-A glossary, `onomasia:glossary@1`, holds two sections:
+A glossary, `onomasia:glossary@2`, holds two sections:
 
 - `terms`, the admitted terms;
 - `rules`, the lexical rules, each forbidding written forms.
@@ -91,14 +141,16 @@ For example, `~ of {input|stimulus} [in {}]` admits "gain of the input in V1" an
 
 ## Notations
 
-A notation, `onomasia:notation@1`, holds two sections:
+A notation, `onomasia:notation@2`, holds two sections:
 
 - `classes`, the typographic classes, each with an optional template under `template` and an optional gloss under `gloss`;
 - `entries`, the symbols, each printed by its own body or by the template of its class.
 
 In a class template, the configured placeholder stands for the base of an entry. The default placeholder is `{{base}}`. An entry gives either its full TeX under `body`, or its base under `base` together with a class holding a template. For example, the class `matrix` with the template `\boldsymbol{{{base}}}` prints the entry of base `W` as `\boldsymbol{W}`. ^printed-forms
 
-An entry designates a *unit*: an object of research declared outside Onomasia, such as a quantity or the block anchor of a note. The entry names the logical target of its unit under `denotes`, and the other tools of the corpus address the unit by that target. The unit states the meaning of the entry, so an entry with a target omits the gloss. An entry without a target is *undeclared*. In that case, its gloss states its meaning, and the check `undeclared-entry` reports it as a warning. ^meaning
+An entry designates a *unit*: an object of research declared outside Onomasia, such as a quantity or the block anchor of a note. In `onomasia:notation@2`, the entry names the logical target of its unit under `denotes`, as a mapping `{repository, id, unit}`, and the other tools of the corpus address the unit by that target. A target without `repository` names a unit of the repository holding the notation. Onomasia normalizes each target by filling in that repository, from the manifest `repository.yml` of the repository. The check `unnormalized-target` reports a target left without repository when the repository holding the notation declares no identifier. The unit states the meaning of the entry, so an entry with a target omits the gloss. An entry without a target is *undeclared*. In that case, its gloss states its meaning, and the check `undeclared-entry` reports it as a warning. ^meaning
+
+In `onomasia:notation@1`, `denotes` holds a text. Onomasia still reads such an entry as declared. A text carries no logical target. Therefore, the outputs write the target of such an entry as null, and the entry takes no argument from the [denotes targets](contracts.md#^denotes-targets).
 
 Four keys of an entry fix its macro:
 
