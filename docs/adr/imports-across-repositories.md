@@ -39,7 +39,7 @@ Anagraphe reads one verified record for Onomasia, through its [record resolver](
 
 **The receipt in the generated documents.** Each generated document holds an optional block `inputs` beside its block `sources`. The block lists each imported record of another repository with its repository, its commit, its identifier and the `sha256` digest of its bytes. The entries follow the order of `(repository, commit, id)`. An optional block keeps the version of the contract of the document. ^receipt
 
-**Limits set by the consumer.** A closure holds at most 8 levels of imports, 64 records and 4 MiB of record bytes by default. The configuration of the consumer may change each limit under its key `imports`, and imported content cannot. An exceeded limit is reported as `import-limit`, and the composer reads no further import of that branch. ^limits
+**Limits set by the consumer.** A closure holds at most 8 levels of imports, 64 records and 4 MiB of record bytes by default. The configuration of the consumer may change each limit under its key `imports`, and imported content cannot. An exceeded limit is reported as `import-limit`. Beyond the depth limit, the composer reads no further import of the branch. A source whose closure exceeds the record or the byte limit stays out of the composition; that source is read first, which stays bounded since its own closure obeys the same limits. ^limits
 
 ## Constraints that decide the form
 
