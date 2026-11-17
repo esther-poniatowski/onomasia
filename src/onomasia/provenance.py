@@ -3,12 +3,16 @@ Provenance of generated documents: the repository, the commit and the state of t
 
 A build records the commit of the notation that it used, so a document generated from records
 names its sources. The provider of that information is a port, so that the core reads no
-repository itself; the Git adapter runs `git` on the root of the consumer.
+repository itself; the Git adapter runs `git` on the root of the consumer. A document also lists,
+as its inputs, each record of another repository imported into its records, with the digest of its
+bytes.
 
 Classes
 -------
 Source
     Repository, commit and state of the records behind a document.
+Input
+    Record of another repository imported into the records behind a document.
 ProvenanceProvider
     Protocol of a provider of the sources of a root.
 GitProvenance
@@ -59,6 +63,40 @@ class Source:
     def to_data(self) -> dict[str, object]:
         """Return the plain-data form of the common field `sources` of a contract."""
         return {"repository": self.repository, "commit": self.commit, "dirty": self.dirty}
+
+
+@dataclass(frozen=True, order=True)
+class Input:
+    """
+    Record of another repository imported into the records behind a document, at its commit.
+
+    The order of the fields is the order of the receipt `inputs` of a generated document.
+
+    Attributes
+    ----------
+    repository : str
+        Identifier of the repository, as its manifest `repository.yml` declares it.
+    commit : str
+        Full identifier of the commit selected by the resolution context of the consumer.
+    identifier : str
+        Identifier of the record.
+    sha256 : str
+        Hexadecimal sha256 digest of the bytes of the record at that commit.
+    """
+
+    repository: str
+    commit: str
+    identifier: str
+    sha256: str
+
+    def to_data(self) -> dict[str, object]:
+        """Return the plain-data form of one item of the block `inputs` of a contract."""
+        return {
+            "repository": self.repository,
+            "commit": self.commit,
+            "id": self.identifier,
+            "sha256": self.sha256,
+        }
 
 
 def public_location(url: str) -> str:

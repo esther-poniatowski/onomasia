@@ -79,6 +79,63 @@ $defs:
   imports:
     type: array
     items: {$ref: '#/$defs/import'}
+  import-source:
+    description: >-
+      The source record of an import: an identifier, naming a record of the repository holding
+      the importing record, or a logical target of Anagraphe, naming a record of any repository.
+      A target without repository names the repository holding the importing record.
+    oneOf:
+      - {$ref: '#/$defs/id'}
+      - $ref: 'https://github.com/esther-poniatowski/anagraphe/schemas/addressing.v1.schema.yml#/$defs/target'
+        required: [id]
+        not: {required: [unit]}
+  import-v2:
+    description: >-
+      An import of the contracts onomasia:glossary@2 and onomasia:notation@2, whose source is an
+      identifier or a logical target. The schema of each contract adds the x-target-contract of its
+      own records at the key from.
+    type: object
+    additionalProperties: false
+    required: [from]
+    allOf:
+      - not: {required: [only, except]}
+      - not: {required: [as, only]}
+      - not: {required: [as, except]}
+    properties:
+      from: {$ref: '#/$defs/import-source'}
+      as: {$ref: '#/$defs/id'}
+      only:
+        type: array
+        minItems: 1
+        uniqueItems: true
+        items: {$ref: '#/$defs/id'}
+      except:
+        type: array
+        minItems: 1
+        uniqueItems: true
+        items: {$ref: '#/$defs/id'}
+  unit-target:
+    description: >-
+      A normalized logical target of a unit: its repository, its record and its unit, as every
+      output of Onomasia writes it.
+    $ref: 'https://github.com/esther-poniatowski/anagraphe/schemas/addressing.v1.schema.yml#/$defs/target'
+    required: [repository, id, unit]
+  inputs:
+    type: array
+    description: >-
+      Records of other repositories imported into the records behind a generated document, each
+      with the sha256 digest of its bytes, ordered by repository, then commit, then identifier.
+    items:
+      type: object
+      additionalProperties: false
+      required: [repository, commit, id, sha256]
+      properties:
+        repository:
+          $ref: 'https://github.com/esther-poniatowski/anagraphe/schemas/addressing.v1.schema.yml#/$defs/repository-id'
+        commit: {type: string, pattern: '^[0-9a-f]{40}([0-9a-f]{24})?$'}
+        id:
+          $ref: 'https://github.com/esther-poniatowski/anagraphe/schemas/addressing.v1.schema.yml#/$defs/record-id'
+        sha256: {type: string, pattern: '^[0-9a-f]{64}$'}
   class:
     type: object
     additionalProperties: false

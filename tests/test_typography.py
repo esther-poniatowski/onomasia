@@ -32,15 +32,29 @@ class FixedProvenance:
         return (SOURCE,)
 
 
+MANIFEST = "_schema: anagraphe:repository@1\nrepository:\n  id: vault\n"
+"""Manifest of the consumer, whose identifier normalizes the targets of its notation."""
+
+
+def _unit(unit: str) -> dict[str, str]:
+    """Write the target of a unit of the model record of the consumer, without its repository."""
+    return {"id": "mixture-model", "unit": unit}
+
+
+def _normalized(unit: str) -> dict[str, str]:
+    """Write the normalized target of a unit of the model record of the consumer."""
+    return {"repository": "vault", **_unit(unit)}
+
+
 NOTATION = {
-    "_schema": "onomasia:notation@1",
+    "_schema": "onomasia:notation@2",
     "id": "mixture",
     "classes": {"matrix": {"template": "\\boldsymbol{{{base}}}"}},
     "entries": {
-        "w-ff": {"denotes": "mixture:weights", "base": "W", "class": "matrix"},
-        "w-entry": {"denotes": "mixture:weight-entry", "body": "W_{#1}", "entry": True},
-        "sum-op": {"denotes": "mixture:sum", "body": "\\sum_{#1} #2"},
-        "set-of": {"denotes": "mixture:set", "body": "\\{#1\\}", "separator": ","},
+        "w-ff": {"denotes": _unit("weights"), "base": "W", "class": "matrix"},
+        "w-entry": {"denotes": _unit("weight-entry"), "body": "W_{#1}", "entry": True},
+        "sum-op": {"denotes": _unit("sum"), "body": "\\sum_{#1} #2"},
+        "set-of": {"denotes": _unit("set"), "body": "\\{#1\\}", "separator": ","},
         "lam": {"gloss": "a free parameter", "body": "\\lambda", "name": "lam"},
     },
 }
@@ -62,11 +76,11 @@ GLOSSARY = {
 }
 
 TARGETS = {
-    "contract": "onomasia:denotes-targets@1",
+    "contract": "onomasia:denotes-targets@2",
     "sources": [],
     "targets": [
-        {"target": "mixture:sum", "arity": 2, "binder": 1},
-        {"target": "mixture:set", "arity": 1, "variadic": True},
+        {"target": _normalized("sum"), "arity": 2, "binder": 1},
+        {"target": _normalized("set"), "arity": 1, "variadic": True},
     ],
 }
 
@@ -108,6 +122,7 @@ def _consumer(
     }
     (tmp_path / "onomasia.yml").write_text(yaml.safe_dump(configuration), encoding="utf-8")
     files = {
+        "repository.yml": MANIFEST,
         "glossary.yml": GLOSSARY,
         "notation.yml": NOTATION,
         "overlay.yml": OVERLAY,
@@ -211,11 +226,39 @@ def test_lookup_names_each_declared_unit(tmp_path: Path) -> None:
     root = _consumer(tmp_path, {})
     _build(root)
     targets = yaml.safe_load((root / "out" / "lookup.yml").read_text())["targets"]
-    assert targets == {
-        "mixture:weights": "onowFf",
-        "mixture:weight-entry": "onowEntry",
-        "mixture:sum": "onosumOp",
-        "mixture:set": "onosetOf",
+    assert targets == [
+        {"target": _normalized("set"), "name": "onosetOf"},
+        {"target": _normalized("sum"), "name": "onosumOp"},
+        {"target": _normalized("weight-entry"), "name": "onowEntry"},
+        {"target": _normalized("weights"), "name": "onowFf"},
+    ]
+
+
+def test_macro_table_writes_the_normalized_target_or_null(tmp_path: Path) -> None:
+    root = _consumer(tmp_path, {})
+    _build(root)
+    entries = {
+        entry["id"]: entry["target"]
+        for entry in yaml.safe_load((root / "out" / "table.yml").read_text())["entries"]
+    }
+    assert entries["w-ff"] == _normalized("weights") and entries["lam"] is None
+
+
+def test_target_with_its_repository_written_matches_the_same_unit(tmp_path: Path) -> None:
+    """A target written with the repository of the consumer and one written without it are one
+    normalized target, so both match one unit of the denotes targets, and they collide."""
+    notation = _notation(**{"sum-op": {"denotes": _normalized("sum"), "body": "\\sum_{#1} #2"}})
+    root = _consumer(tmp_path, {"notation.yml": notation})
+    _build(root)
+    entries = {
+        entry["id"]: entry
+        for entry in yaml.safe_load((root / "out" / "table.yml").read_text())["entries"]
+    }
+    assert (entries["sum-op"]["arity"], entries["sum-op"]["binder"]) == (2, 1)
+    clash = _notation(other={"denotes": _normalized("weights"), "body": "o"})
+    issues = _build(_consumer(tmp_path, {"notation.yml": clash})).issues
+    assert ("ambiguous-target", "/entries/w-ff") in {
+        (issue.check, issue.pointer) for issue in issues
     }
 
 
@@ -268,17 +311,22 @@ PLANTED = {
         "/entries/mu",
     ),
     "ambiguous-target": (
-        {"notation.yml": _notation(v={"denotes": "mixture:weights", "body": "v"})},
+        {"notation.yml": _notation(v={"denotes": _unit("weights"), "body": "v"})},
         "/entries/w-ff",
     ),
     "too-many-parameters": (
-        {"targets.yml": dict(TARGETS, targets=[{"target": "mixture:weight-entry", "arity": 9}])},
+        {
+            "targets.yml": dict(
+                TARGETS, targets=[{"target": _normalized("weight-entry"), "arity": 9}]
+            )
+        },
         "/entries/w-entry",
     ),
     "missing-separator": (
-        {"notation.yml": _notation(**{"set-of": {"denotes": "mixture:set", "body": "\\{#1\\}"}})},
+        {"notation.yml": _notation(**{"set-of": {"denotes": _unit("set"), "body": "\\{#1\\}"}})},
         "/entries/set-of",
     ),
+    "unnormalized-target": ({"repository.yml": "no: manifest\n"}, "/entries/w-ff/denotes"),
     "macro-cycle": (
         {
             "notation.yml": _notation(
@@ -289,7 +337,7 @@ PLANTED = {
         "/entries/b",
     ),
     "invalid-contract": (
-        {"targets.yml": dict(TARGETS, targets=[{"target": "x", "arity": "two"}])},
+        {"targets.yml": dict(TARGETS, targets=[{"target": _normalized("x"), "arity": "two"}])},
         "/targets/0/arity",
     ),
 }

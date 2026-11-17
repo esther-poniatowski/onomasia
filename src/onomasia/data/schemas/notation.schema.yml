@@ -1,5 +1,7 @@
-# Format of a notation: the symbols of a vocabulary, each naming the unit that it denotes, and the
-# typographic classes whose templates print them.
+# Format of a notation, onomasia:notation@2: the symbols of a vocabulary, each naming the unit that
+# it denotes by a logical target, and the typographic classes whose templates print them. An import
+# names its source by an identifier, or by a logical target into another repository. The file
+# notation.v1.schema.yml keeps onomasia:notation@1, which Onomasia still reads.
 $schema: https://json-schema.org/draft/2020-12/schema
 $id: notation.schema.yml
 title: Notation
@@ -9,9 +11,16 @@ additionalProperties: false
 x-identifier: id
 required: [_schema, id]
 properties:
-  _schema: {const: 'onomasia:notation@1'}
+  _schema: {const: 'onomasia:notation@2'}
   id: {$ref: 'common.schema.yml#/$defs/id'}
-  imports: {$ref: 'common.schema.yml#/$defs/imports'}
+  imports:
+    type: array
+    items:
+      $ref: 'common.schema.yml#/$defs/import-v2'
+      # The record named by a target follows a notation contract, which the check of the targets
+      # of Anagraphe verifies.
+      properties:
+        from: {x-target-contract: ['onomasia:notation']}
   metadata: {type: object, description: Fields of the consumer, which Onomasia does not read.}
   classes:
     type: object
@@ -21,6 +30,16 @@ properties:
     type: object
     propertyNames: {$ref: 'common.schema.yml#/$defs/id'}
     additionalProperties: {$ref: '#/$defs/entry'}
+examples:
+  - _schema: 'onomasia:notation@2'
+    id: mixture
+    imports:
+      - {from: {repository: lexicon, id: base-notation}}
+    classes:
+      matrix: {template: '\boldsymbol{{{base}}}'}
+    entries:
+      w-ff: {denotes: {id: mixture-model, unit: weights}, base: W, class: matrix}
+      lam: {gloss: a free parameter, body: '\lambda'}
 
 $defs:
   entry:
@@ -28,8 +47,11 @@ $defs:
     additionalProperties: false
     properties:
       denotes:
-        $ref: 'common.schema.yml#/$defs/text'
-        description: Logical target of the unit that the entry designates.
+        $ref: 'https://github.com/esther-poniatowski/anagraphe/schemas/addressing.v1.schema.yml#/$defs/target'
+        required: [id, unit]
+        description: >-
+          Logical target of the unit that the entry designates; a target without repository names
+          a unit of the repository holding the notation.
       gloss: {$ref: 'common.schema.yml#/$defs/text'}
       body: {$ref: 'common.schema.yml#/$defs/text'}
       base: {$ref: 'common.schema.yml#/$defs/text'}

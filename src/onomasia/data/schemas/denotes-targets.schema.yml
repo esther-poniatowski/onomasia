@@ -1,5 +1,6 @@
-# Contract onomasia:denotes-targets@1: the units that a key denotes may name, with their
-# arguments. Gnomon generates it; Onomasia takes from it the arguments of each macro.
+# Contract onomasia:denotes-targets@2: the units that a key denotes may name, each as a normalized
+# logical target, with their arguments. Gnomon generates it; Onomasia takes from it the arguments of
+# each macro, matching a unit to an entry by its normalized target.
 $schema: https://json-schema.org/draft/2020-12/schema
 $id: denotes-targets.schema.yml
 title: Denotes targets
@@ -7,7 +8,7 @@ type: object
 additionalProperties: false
 required: [contract, sources, targets]
 properties:
-  contract: {const: 'onomasia:denotes-targets@1'}
+  contract: {const: 'onomasia:denotes-targets@2'}
   sources: {$ref: 'common.schema.yml#/$defs/sources'}
   targets:
     type: array
@@ -16,7 +17,13 @@ properties:
       additionalProperties: false
       required: [target, arity]
       properties:
-        target: {type: string, minLength: 1, description: The unit, as a logical target of Anagraphe.}
+        target: {$ref: 'common.schema.yml#/$defs/unit-target'}
         arity: {type: integer, minimum: 0}
         binder: {type: integer, minimum: 1}
         variadic: {type: boolean}
+examples:
+  - contract: 'onomasia:denotes-targets@2'
+    sources: []
+    targets:
+      - {target: {repository: mixture, id: mixture-model, unit: sum}, arity: 2, binder: 1}
+      - {target: {repository: mixture, id: mixture-model, unit: set}, arity: 1, variadic: true}

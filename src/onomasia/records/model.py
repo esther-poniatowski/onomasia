@@ -9,7 +9,7 @@ sections of each format are declared once, in `RecordKind`.
 Classes
 -------
 RecordKind
-    Format of a record, with its schema identifier and its sections.
+    Format of a record, with its contract, its schema identifiers and its sections.
 Form
     Written form of a term or a rule: a literal, or a regular expression.
 Alternative
@@ -36,32 +36,55 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Mapping, Union
 
+from anagraphe.targets.model import Target
+
+from ..provenance import Input
+
 Contexts = Mapping[str, tuple[str, ...]]
 """Values of each context dimension that an alternative or a replacement suits."""
 
 
 class RecordKind(Enum):
     """
-    Format of a record, with its schema identifier and its sections.
+    Format of a record, with its contract, its schema identifiers and its sections.
 
-    Each member holds the schema identifier written under `_schema`, its name, the key of its globs
-    in the configuration, and the names of its sections of entries.
+    Each member holds the contract of the format, the versions of that contract read by this
+    release, its name, the key of its globs in the configuration, and the names of its sections of
+    entries. A record names one of the versions under `_schema`.
     """
 
-    GLOSSARY = ("onomasia:glossary@1", "glossary", "glossaries", ("terms", "rules"))
-    NOTATION = ("onomasia:notation@1", "notation", "notations", ("classes", "entries"))
-    OVERLAY = ("onomasia:overlay@1", "overlay", "overlays", ("classes", "entries"))
+    GLOSSARY = ("onomasia:glossary", (1, 2), "glossary", "glossaries", ("terms", "rules"))
+    NOTATION = ("onomasia:notation", (1, 2), "notation", "notations", ("classes", "entries"))
+    OVERLAY = ("onomasia:overlay", (1,), "overlay", "overlays", ("classes", "entries"))
 
-    def __init__(self, schema: str, singular: str, plural: str, sections: tuple[str, ...]) -> None:
-        self.schema = schema
+    def __init__(
+        self,
+        contract: str,
+        versions: tuple[int, ...],
+        singular: str,
+        plural: str,
+        sections: tuple[str, ...],
+    ) -> None:
+        self.contract = contract
+        self.schemas = tuple(f"{contract}@{version}" for version in versions)
         self.singular = singular
         self.plural = plural
         self.sections = sections
 
     @classmethod
     def from_schema(cls, schema: object) -> "RecordKind | None":
-        """Return the format of a schema identifier, or None for an unknown one."""
-        return next((kind for kind in cls if kind.schema == schema), None)
+        """
+        Return the format of a schema identifier, any version read by this release, or None for
+        an unknown one.
+
+        Examples
+        --------
+        >>> RecordKind.from_schema("onomasia:glossary@2") is RecordKind.GLOSSARY
+        True
+        >>> RecordKind.from_schema("onomasia:glossary@3") is None
+        True
+        """
+        return next((kind for kind in cls if schema in kind.schemas), None)
 
 
 @dataclass(frozen=True)
@@ -231,8 +254,12 @@ class Entry:  # pylint: disable=too-many-instance-attributes
 
     Attributes
     ----------
-    denotes : str | None
-        Logical target of the unit that the entry designates, None for an undeclared entry.
+    denotes : Target | None
+        Logical target of the unit that the entry designates, normalized by the repository holding
+        the notation; None for an entry naming no unit by a target.
+    denotes_text : str | None
+        Text naming the unit in an entry of `onomasia:notation@1`, which carries no logical
+        target, so that no output and no document of denotes targets matches it.
     gloss : str | None
         Meaning of an undeclared entry, which a declared entry takes from its unit.
     body : str | None
@@ -259,7 +286,8 @@ class Entry:  # pylint: disable=too-many-instance-attributes
         Fields of the consumer, which Onomasia does not read.
     """
 
-    denotes: str | None = None
+    denotes: Target | None = None
+    denotes_text: str | None = None
     gloss: str | None = None
     body: str | None = None
     base: str | None = None
@@ -272,6 +300,11 @@ class Entry:  # pylint: disable=too-many-instance-attributes
     alternatives: tuple[Alternative, ...] = ()
     overloads: tuple[str, ...] = ()
     metadata: Mapping[str, object] = field(default_factory=dict)
+
+    @property
+    def declared(self) -> bool:
+        """Whether the entry names a unit, by a logical target or by the text of version 1."""
+        return self.denotes is not None or self.denotes_text is not None
 
 
 @dataclass(frozen=True)
@@ -304,8 +337,11 @@ class Import:
 
     Attributes
     ----------
-    source : str
-        Identifier of the source record, of the format of the importing record.
+    source : Target
+        Source record, of the format of the importing record, normalized by the repository
+        holding the importing record: an identifier names a record of that repository, as a target
+        without repository does. The target keeps no repository when that repository declares no
+        identifier.
     alias : str | None
         Alias through which the entries are referenced, None for a merged import.
     only : frozenset[str] | None
@@ -316,7 +352,7 @@ class Import:
         JSON Pointer of the import in its record.
     """
 
-    source: str
+    source: Target
     alias: str | None
     only: frozenset[str] | None
     excluded: frozenset[str]
@@ -324,7 +360,7 @@ class Import:
 
 
 @dataclass(frozen=True)
-class Record:
+class Record:  # pylint: disable=too-many-instance-attributes
     """
     Glossary, notation or overlay, read from one file.
 
@@ -342,6 +378,11 @@ class Record:
         Entries of each section, keyed by identifier.
     overlays : str | None
         Identifier of the notation that an overlay overlays.
+    origin : Input | None
+        Repository, commit, identifier and digest of a record read from another repository, None
+        for a record of the consumer.
+    size : int
+        Number of bytes of the document of the record, counted by the limits of an import closure.
     """
 
     kind: RecordKind
@@ -350,3 +391,5 @@ class Record:
     imports: tuple[Import, ...]
     sections: Mapping[str, Mapping[str, SectionEntry]]
     overlays: str | None = None
+    origin: Input | None = None
+    size: int = 0

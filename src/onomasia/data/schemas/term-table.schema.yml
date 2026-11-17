@@ -9,6 +9,7 @@ required: [contract, sources, glossary, terms]
 properties:
   contract: {const: 'onomasia:term-table@1'}
   sources: {$ref: 'common.schema.yml#/$defs/sources'}
+  inputs: {$ref: 'common.schema.yml#/$defs/inputs'}
   glossary: {$ref: 'common.schema.yml#/$defs/id'}
   terms:
     type: array

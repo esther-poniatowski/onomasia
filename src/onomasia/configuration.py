@@ -6,7 +6,7 @@ The file lies at `config/tools/onomasia.yml` or at `onomasia.yml` below the root
 holding a file is an error, unless another file is named. The root of a command is the folder given
 by `--root`, else by the variable `ONOMASIA_ROOT`, else the nearest folder, from the current one
 upwards, that holds the file at one of its places, else the current folder. The file names its
-format under `_schema`, then declares six sections, each optional:
+format under `_schema`, then declares seven sections, each optional:
 
 - `records`, the globs of the records of each format, relative to the root, and the paths
   excluded from every glob;
@@ -16,7 +16,8 @@ format under `_schema`, then declares six sections, each optional:
   derivation of macro names;
 - `build`, the input documents read by the build, and the outputs that it writes;
 - `checks`, the severity of each check that the consumer changes: `error`, `warning` or `off`;
-- `texts`, the texts checked against their glossaries and notations, and how they are read.
+- `texts`, the texts checked against their glossaries and notations, and how they are read;
+- `imports`, the limits of the closure of the imports of each record.
 
 Classes
 -------
@@ -28,6 +29,8 @@ RecordLocations
     Globs of the records of each format, and the paths excluded from them.
 Typography
     Conventions of the printed forms of notation entries.
+ImportLimits
+    Limits of the closure of one record: its levels of imports, its records and its bytes.
 Configuration
     Resolved configuration of one consumer.
 
@@ -159,6 +162,29 @@ class Typography:
     maximum_parameters: int
 
 
+@dataclass(frozen=True)
+class ImportLimits:
+    """
+    Limits of the closure of one record: its levels of imports, its records and its bytes.
+
+    The configuration of the consumer sets the limits, under its key `imports`; imported content
+    cannot change them.
+
+    Attributes
+    ----------
+    depth : int
+        Levels of imports below a record, an import of the record opening the first level.
+    records : int
+        Records of the closure, the record itself included.
+    size : int
+        Bytes of the documents of the records of the closure.
+    """
+
+    depth: int = 8
+    records: int = 64
+    size: int = 4 * 1024 * 1024
+
+
 class Product(Enum):
     """Product written by the build: a contract document or a serialization of a macro table."""
 
@@ -273,6 +299,8 @@ class Configuration:
         Severity of each check of the catalog.
     texts : Texts | None
         Texts to check, None when the consumer checks none.
+    imports : ImportLimits
+        Limits of the closure of each record.
     """
 
     root: Path
@@ -283,6 +311,7 @@ class Configuration:
     build: Build
     severities: Mapping[str, Severity]
     texts: "Texts | None" = None
+    imports: ImportLimits = ImportLimits()
 
 
 def _severity(fields: Fields | None, key: str, default: Severity) -> Severity:
@@ -450,6 +479,25 @@ def _texts(root: Path, fields: Fields | None) -> Texts | None:
     return texts
 
 
+IMPORT_LIMIT_KEYS = {"depth": "depth", "records": "records", "bytes": "size"}
+"""Key of each limit under the section `imports`, with the attribute of `ImportLimits` holding it."""
+
+
+def _imports(fields: Fields | None) -> ImportLimits:
+    """Read the limits of the closures, each key left out taking its packaged value."""
+    packaged = _packaged_section("imports")
+    limits: dict[str, int] = {}
+    for key, attribute in IMPORT_LIMIT_KEYS.items():
+        source = fields if fields is not None and fields.present(key) else packaged
+        value = source.integer(key)
+        if value < 1:
+            raise source.error(key, "expected a positive integer")
+        limits[attribute] = value
+    if fields is not None:
+        fields.finish()
+    return ImportLimits(**limits)
+
+
 def _require_format(fields: Fields) -> None:
     """Require the format of the configuration, or raise an error naming the value to write."""
     instruction = f"write {FORMAT_KEY}: {CONFIGURATION_FORMAT} as the first key"
@@ -475,6 +523,7 @@ def _resolve(root: Path, resource: str, data: Mapping[str, object], origin: str)
         build=_build(root, fields.section("build")),
         severities=_severities(fields.section("checks")),
         texts=_texts(root, fields.section("texts")),
+        imports=_imports(fields.section("imports")),
     )
     fields.finish()
     return configuration

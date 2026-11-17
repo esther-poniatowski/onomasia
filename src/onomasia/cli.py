@@ -33,7 +33,7 @@ from .configuration import (
 )
 from .errors import OnomasiaError
 from .issues import Issue, Severity
-from .service import build_outputs, check_records
+from .service import build_outputs, check_records, default_provider
 
 app = typer.Typer(add_completion=False, no_args_is_help=True)
 
@@ -69,7 +69,7 @@ def cli_check(
     """Run every check of a build and of the texts without writing; exit 1 on an error."""
     try:
         configuration = _configuration(root, config)
-        issues = check_records(configuration)
+        issues = check_records(configuration, provider=default_provider())
     except OnomasiaError as error:
         typer.echo(f"error: {error}", err=True)
         raise typer.Exit(2) from error
@@ -88,7 +88,7 @@ def cli_build(
     """Check the records, then write the declared outputs, or nothing when an error is reported."""
     try:
         configuration = _configuration(root, config)
-        result = build_outputs(configuration)
+        result = build_outputs(configuration, provider=default_provider())
     except OnomasiaError as error:
         typer.echo(f"error: {error}", err=True)
         raise typer.Exit(2) from error

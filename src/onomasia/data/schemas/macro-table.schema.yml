@@ -1,5 +1,6 @@
-# Contract onomasia:macro-table@1: one macro per entry of a composition of notations. Onomasia
-# generates it; Gnomon reads the target and the class of each entry from it.
+# Contract onomasia:macro-table@2: one macro per entry of a composition of notations, each with the
+# normalized logical target of its unit. Onomasia generates it; Gnomon reads the target and the
+# class of each entry from it.
 $schema: https://json-schema.org/draft/2020-12/schema
 $id: macro-table.schema.yml
 title: Macro table
@@ -7,8 +8,9 @@ type: object
 additionalProperties: false
 required: [contract, sources, notations, overlays, entries]
 properties:
-  contract: {const: 'onomasia:macro-table@1'}
+  contract: {const: 'onomasia:macro-table@2'}
   sources: {$ref: 'common.schema.yml#/$defs/sources'}
+  inputs: {$ref: 'common.schema.yml#/$defs/inputs'}
   notations: {type: array, items: {$ref: 'common.schema.yml#/$defs/id'}}
   overlays: {type: array, items: {$ref: 'common.schema.yml#/$defs/id'}}
   entries:
@@ -20,7 +22,11 @@ properties:
       properties:
         id: {$ref: 'common.schema.yml#/$defs/id'}
         notation: {$ref: 'common.schema.yml#/$defs/id'}
-        target: {type: [string, 'null']}
+        target:
+          description: The normalized target of the unit of the entry, null for an entry denoting none.
+          oneOf:
+            - {$ref: 'common.schema.yml#/$defs/unit-target'}
+            - {type: 'null'}
         name: {type: string, pattern: '^[A-Za-z]+$'}
         body: {type: string, minLength: 1}
         arity: {type: integer, minimum: 0}
@@ -28,3 +34,34 @@ properties:
         binder: {type: [integer, 'null'], minimum: 1}
         separator: {type: [string, 'null']}
         class: {type: [string, 'null']}
+examples:
+  - contract: 'onomasia:macro-table@2'
+    sources: []
+    inputs:
+      - repository: lexicon
+        commit: 0123456789abcdef0123456789abcdef01234567
+        id: base-notation
+        sha256: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+    notations: [mixture]
+    overlays: []
+    entries:
+      - id: sum-op
+        notation: mixture
+        target: {repository: mixture, id: mixture-model, unit: sum}
+        name: onosumOp
+        body: '\sum_{#1} #2'
+        arity: 2
+        entry: false
+        binder: 1
+        separator: null
+        class: null
+      - id: lam
+        notation: mixture
+        target: null
+        name: lam
+        body: '\lambda'
+        arity: 0
+        entry: false
+        binder: null
+        separator: null
+        class: null

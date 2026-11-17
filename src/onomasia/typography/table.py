@@ -2,10 +2,11 @@
 Macro table: one macro per entry of a composition of notations, with its name, body and arguments.
 
 The arguments of a macro come from the unit that its entry denotes, as the denotes targets state
-them: its arity, its binder slot, and whether it takes a list of items. An entry may also take the
-optional entry argument, which comes first. The table is checked as it is built: a declared name
-under the reserved prefix, two entries of one name, two entries of one unit, too many parameters,
-a variadic macro without separator, and bodies calling one another in a cycle.
+them: its arity, its binder slot, and whether it takes a list of items. A unit of the denotes
+targets is matched with an entry by its normalized logical target, never by a text. An entry may
+also take the optional entry argument, which comes first. The table is checked as it is built: a
+declared name under the reserved prefix, two entries of one name, two entries of one unit, too many
+parameters, a variadic macro without separator, and bodies calling one another in a cycle.
 
 Classes
 -------
@@ -26,9 +27,12 @@ from dataclasses import dataclass
 import re
 from typing import Mapping, Sequence
 
+from anagraphe.targets.model import Target
+
 from ..composition import Composition, Visible
 from ..configuration import Typography
 from ..issues import IssueSink
+from ..provenance import Input
 from ..records.model import Entry
 from .bodies import printed_body
 from .names import derived_name
@@ -68,8 +72,8 @@ class Macro:  # pylint: disable=too-many-instance-attributes
         Identifier of the entry.
     notation : str
         Identifier of the notation, or of the overlay, declaring the entry.
-    target : str | None
-        Unit denoted by the entry.
+    target : Target | None
+        Normalized target of the unit denoted by the entry, None for an entry denoting none.
     name : str
         Macro name.
     body : str
@@ -88,7 +92,7 @@ class Macro:  # pylint: disable=too-many-instance-attributes
 
     identifier: str
     notation: str
-    target: str | None
+    target: Target | None
     name: str
     body: str
     arity: int
@@ -116,18 +120,22 @@ class MacroTable:
         Overlays applied, in order.
     macros : tuple[Macro, ...]
         Macros, sorted by name.
+    inputs : tuple[Input, ...]
+        Records of other repositories in the closures of the notations, ordered by repository,
+        then commit, then identifier.
     """
 
     notations: tuple[str, ...]
     overlays: tuple[str, ...]
     macros: tuple[Macro, ...]
+    inputs: tuple[Input, ...] = ()
 
 
 def _macro(
     identifier: str,
     visible: Visible,
     composition: Composition,
-    signatures: Mapping[str, TargetSignature],
+    signatures: Mapping[Target, TargetSignature],
     typography: Typography,
 ) -> Macro | None:
     """Build the macro of one entry, or None when the entry prints no body."""
@@ -137,7 +145,11 @@ def _macro(
     body = printed_body(entry, composition, typography.base_placeholder)
     if body is None:
         return None
-    signature = signatures.get(entry.denotes or "", TargetSignature())
+    signature = (
+        signatures.get(entry.denotes, TargetSignature())
+        if entry.denotes is not None
+        else TargetSignature()
+    )
     name = entry.name or derived_name(identifier, typography.macro_prefix, typography.digit_names)
     return Macro(
         identifier=identifier,
@@ -190,7 +202,7 @@ class _TableChecks:
     def unique(self, macros: Sequence[tuple[Macro, Visible]]) -> None:
         """Check that no two macros share a name, and no two entries denote one unit."""
         names: dict[str, str] = {}
-        targets: dict[str, str] = {}
+        targets: dict[Target, str] = {}
         for macro, visible in macros:
             first = names.setdefault(macro.name, macro.identifier)
             if first != macro.identifier:
@@ -238,7 +250,7 @@ def _reaches(calls: Mapping[str, set[str]], name: str) -> bool:
 def build_macro_table(
     compositions: Sequence[Composition],
     overlays: Sequence[str],
-    signatures: Mapping[str, TargetSignature],
+    signatures: Mapping[Target, TargetSignature],
     typography: Typography,
     sink: IssueSink,
 ) -> MacroTable:
@@ -251,8 +263,9 @@ def build_macro_table(
         Composition of each notation of the table, its overlays already applied.
     overlays : Sequence[str]
         Identifiers of the overlays applied, recorded in the table.
-    signatures : Mapping[str, TargetSignature]
-        Arguments of each unit, by target; a unit absent from the mapping takes no argument.
+    signatures : Mapping[Target, TargetSignature]
+        Arguments of each unit, by normalized target; a unit absent from the mapping takes no
+        argument.
     typography : Typography
         Prefix, digit names, placeholder and parameter limit.
     sink : IssueSink
@@ -265,7 +278,12 @@ def build_macro_table(
             macro = _macro(identifier, visible, composition, signatures, typography)
             if macro is None:
                 continue
-            checks.entry(macro, visible, signatures.get(macro.target or "", TargetSignature()))
+            signature = (
+                signatures.get(macro.target, TargetSignature())
+                if macro.target is not None
+                else TargetSignature()
+            )
+            checks.entry(macro, visible, signature)
             built.append((macro, visible))
     checks.unique(built)
     checks.acyclic(built)
@@ -273,4 +291,5 @@ def build_macro_table(
         composition.record.overlays or composition.record.identifier for composition in compositions
     )
     macros = tuple(sorted((macro for macro, _ in built), key=lambda macro: macro.name))
-    return MacroTable(notations, tuple(overlays), macros)
+    inputs = tuple(sorted({item for composition in compositions for item in composition.inputs()}))
+    return MacroTable(notations, tuple(overlays), macros, inputs)

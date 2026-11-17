@@ -37,6 +37,8 @@ import re
 from dataclasses import dataclass
 from typing import Iterable, Mapping, Sequence
 
+from anagraphe.targets.model import Target
+
 from ..composition import Composer, Composition, Visible
 from ..configuration import StatusRole, Texts, Typography, Vocabulary
 from ..contracts import ScopeTable
@@ -120,7 +122,7 @@ class TextChecker:  # pylint: disable=too-many-instance-attributes
         Composer of the records of the consumer.
     bindings : BindingSource
         Provider of the bindings of the texts.
-    signatures : Mapping[str, TargetSignature]
+    signatures : Mapping[Target, TargetSignature]
         Arguments of each unit, read from the denotes targets.
     scope : ScopeTable | None
         Scope table relating the audiences, None when each audience relates to itself only.
@@ -135,7 +137,7 @@ class TextChecker:  # pylint: disable=too-many-instance-attributes
         typography: Typography,
         composer: Composer,
         bindings: BindingSource,
-        signatures: Mapping[str, TargetSignature],
+        signatures: Mapping[Target, TargetSignature],
         scope: ScopeTable | None,
         sink: IssueSink,
     ) -> None:

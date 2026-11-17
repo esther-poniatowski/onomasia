@@ -16,7 +16,9 @@ FileRecordSource
 
 Functions
 ---------
-load_records(source, validator, sink) -> list[Record]
+load_document(document, validator, sink, *, repository, origin) -> Record | None
+    Read, validate and parse one document, such as a record read from another repository.
+load_records(source, validator, sink, repository) -> list[Record]
     Read, validate and parse every document of a source.
 """
 
@@ -29,6 +31,7 @@ import yaml
 
 from .configuration import FORMAT_KEY, RecordLocations
 from .issues import IssueSink
+from .provenance import Input
 from .records.model import Record, RecordKind
 from .records.parsing import parse_record
 from .records.validation import SchemaValidator
@@ -155,7 +158,75 @@ def _parse(document: RawDocument, sink: IssueSink) -> object | None:
     return None
 
 
-def load_records(source: RecordSource, validator: SchemaValidator, sink: IssueSink) -> list[Record]:
+def load_document(
+    document: RawDocument,
+    validator: SchemaValidator,
+    sink: IssueSink,
+    *,
+    repository: str | None = None,
+    origin: Input | None = None,
+) -> Record | None:
+    """
+    Read, validate and parse one document, against the schema of the version that it names.
+
+    Parameters
+    ----------
+    document : RawDocument
+        Document of the record, with the format expected from its location or its import.
+    validator : SchemaValidator
+        Validator of the formats.
+    sink : IssueSink
+        Collector of the issues, each reported at the resource of the document.
+    repository : str | None
+        Identifier of the repository holding the record, which normalizes its targets.
+    origin : Input | None
+        Commit and digest of a record read from another repository, None for a record of the
+        consumer.
+
+    Returns
+    -------
+    Record | None
+        Record that parses and validates, or None after its defects are reported.
+    """
+    data = _parse(document, sink)
+    if data is None:
+        return None
+    declared = data.get(FORMAT_KEY) if isinstance(data, Mapping) else None
+    kind = RecordKind.from_schema(declared)
+    if kind is None or not isinstance(data, Mapping):
+        sink.report(
+            "unknown-format", document.resource, f"/{FORMAT_KEY}", "no format of Onomasia is named"
+        )
+        return None
+    if kind is not document.expected:
+        sink.report(
+            "wrong-format",
+            document.resource,
+            f"/{FORMAT_KEY}",
+            f"declares {declared}, while it is read as one of the {document.expected.plural}",
+        )
+        return None
+    violations = list(validator.errors(str(declared), data))
+    for pointer, message in violations:
+        sink.report("schema-violation", document.resource, pointer, message)
+    if violations:
+        return None
+    return parse_record(
+        kind,
+        data,
+        document.resource,
+        repository=repository,
+        origin=origin,
+        size=len(document.text.encode("utf-8")),
+    )
+
+
+def load_records(
+    source: RecordSource,
+    validator: SchemaValidator,
+    sink: IssueSink,
+    repository: str | None = None,
+) -> list[Record]:
     """
     Read, validate and parse every document of a source.
 
@@ -167,6 +238,9 @@ def load_records(source: RecordSource, validator: SchemaValidator, sink: IssueSi
         Validator of the formats.
     sink : IssueSink
         Collector of the issues.
+    repository : str | None
+        Identifier of the repository of the consumer, which normalizes the targets of its records;
+        None when the consumer declares none.
 
     Returns
     -------
@@ -175,29 +249,7 @@ def load_records(source: RecordSource, validator: SchemaValidator, sink: IssueSi
     """
     records: list[Record] = []
     for document in source.documents():
-        data = _parse(document, sink)
-        if data is None:
-            continue
-        kind = RecordKind.from_schema(data.get(FORMAT_KEY) if isinstance(data, Mapping) else None)
-        if kind is None or not isinstance(data, Mapping):
-            sink.report(
-                "unknown-format",
-                document.resource,
-                f"/{FORMAT_KEY}",
-                "no format of Onomasia is named",
-            )
-            continue
-        if kind is not document.expected:
-            sink.report(
-                "wrong-format",
-                document.resource,
-                f"/{FORMAT_KEY}",
-                f"declares {kind.schema}, while its path matches the {document.expected.plural}",
-            )
-            continue
-        violations = list(validator.errors(kind, data))
-        for pointer, message in violations:
-            sink.report("schema-violation", document.resource, pointer, message)
-        if not violations:
-            records.append(parse_record(kind, data, document.resource))
+        record = load_document(document, validator, sink, repository=repository)
+        if record is not None:
+            records.append(record)
     return records

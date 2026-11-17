@@ -1,5 +1,7 @@
-# Format of a glossary: the admitted terms of a vocabulary, and the lexical rules that forbid
-# other forms, each rule possibly scoped to audiences.
+# Format of a glossary, onomasia:glossary@2: the admitted terms of a vocabulary, and the lexical
+# rules that forbid other forms, each rule possibly scoped to audiences. An import names its source
+# by an identifier, or by a logical target into another repository. The file
+# glossary.v1.schema.yml keeps onomasia:glossary@1, which Onomasia still reads.
 $schema: https://json-schema.org/draft/2020-12/schema
 $id: glossary.schema.yml
 title: Glossary
@@ -9,9 +11,16 @@ additionalProperties: false
 x-identifier: id
 required: [_schema, id]
 properties:
-  _schema: {const: 'onomasia:glossary@1'}
+  _schema: {const: 'onomasia:glossary@2'}
   id: {$ref: 'common.schema.yml#/$defs/id'}
-  imports: {$ref: 'common.schema.yml#/$defs/imports'}
+  imports:
+    type: array
+    items:
+      $ref: 'common.schema.yml#/$defs/import-v2'
+      # The record named by a target follows a glossary contract, which the check of the targets
+      # of Anagraphe verifies.
+      properties:
+        from: {x-target-contract: ['onomasia:glossary']}
   metadata: {type: object, description: Fields of the consumer, which Onomasia does not read.}
   terms:
     type: object
@@ -21,6 +30,14 @@ properties:
     type: object
     propertyNames: {$ref: 'common.schema.yml#/$defs/id'}
     additionalProperties: {$ref: '#/$defs/rule'}
+examples:
+  - _schema: 'onomasia:glossary@2'
+    id: project
+    imports:
+      - {from: {repository: lexicon, id: base}, except: [curve]}
+      - {from: local-base, as: b}
+    terms:
+      manifold: {label: manifold, gloss: a smooth set, relations: {narrows: [b.curve]}}
 
 $defs:
   term:

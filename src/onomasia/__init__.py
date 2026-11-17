@@ -38,13 +38,18 @@ PackageNotFoundError
 from importlib.metadata import version, PackageNotFoundError
 import platform
 
-from .configuration import Configuration, default_configuration, load_configuration
+from .configuration import (
+    Configuration,
+    ImportLimits,
+    default_configuration,
+    load_configuration,
+)
 from .errors import ConfigurationError, OnomasiaError
 from .issues import Issue, Severity
-from .provenance import GitProvenance, ProvenanceProvider, Source
+from .provenance import GitProvenance, Input, ProvenanceProvider, Source
 from .records.model import Entry, LexicalRule, Record, RecordKind, Term, TypographicClass
 from .repository import FileRecordSource, RawDocument, RecordSource
-from .service import BuildResult, build_outputs, check_records
+from .service import BuildResult, build_outputs, check_records, default_provider
 
 try:
     if __package__ is None:  # erroneous script execution
@@ -60,6 +65,8 @@ __all__ = [
     "Entry",
     "FileRecordSource",
     "GitProvenance",
+    "ImportLimits",
+    "Input",
     "Issue",
     "LexicalRule",
     "OnomasiaError",
@@ -75,6 +82,7 @@ __all__ = [
     "build_outputs",
     "check_records",
     "default_configuration",
+    "default_provider",
     "info",
     "load_configuration",
     "__version__",

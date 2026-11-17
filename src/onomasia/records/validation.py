@@ -1,6 +1,11 @@
 """
 Validation of records against the packaged schemas of their formats.
 
+A record names the version of its format under `_schema`, and the validator checks it against the
+schema of that version, so that the records of every version read by this release stay valid. The
+schemas reference the logical target of Anagraphe by its absolute identifier, and the validator
+reads that resource from the package of Anagraphe.
+
 Classes
 -------
 SchemaValidator
@@ -10,6 +15,8 @@ SchemaValidator
 from importlib import resources
 from typing import Iterator, Mapping
 
+from anagraphe.targets.resource import ADDRESSING_FILE, ADDRESSING_ID
+from anagraphe.targets.resource import schema as addressing_schema
 from jsonschema import Draft202012Validator
 from jsonschema.exceptions import ValidationError
 from referencing import Registry, Resource
@@ -22,11 +29,13 @@ SCHEMA_FOLDER = "data/schemas"
 """Package folder holding the schemas of the formats."""
 
 SCHEMA_FILES = {
-    RecordKind.GLOSSARY: "glossary.schema.yml",
-    RecordKind.NOTATION: "notation.schema.yml",
-    RecordKind.OVERLAY: "overlay.schema.yml",
+    "onomasia:glossary@1": "glossary.v1.schema.yml",
+    "onomasia:glossary@2": "glossary.schema.yml",
+    "onomasia:notation@1": "notation.v1.schema.yml",
+    "onomasia:notation@2": "notation.schema.yml",
+    "onomasia:overlay@1": "overlay.schema.yml",
 }
-"""Schema file of each format, in the package folder of the schemas."""
+"""Schema file of each version of each format, in the package folder of the schemas."""
 
 
 def _pointer(error: ValidationError) -> str:
@@ -54,21 +63,35 @@ class SchemaValidator:
                 if not isinstance(schema, Mapping):
                     raise OnomasiaError(f"{SCHEMA_FOLDER}/{path.name}: a schema is a mapping")
                 schemas[str(schema["$id"])] = schema
-        registry: Registry = Registry().with_resources(
+        contents = [
             (identifier, Resource.from_contents(schema)) for identifier, schema in schemas.items()
-        )
+        ]
+        contents.append((ADDRESSING_ID, Resource.from_contents(addressing_schema(ADDRESSING_FILE))))
+        registry: Registry = Registry().with_resources(contents)
         self._registry = registry
         self._schemas = schemas
+        unknown = [name for kind in RecordKind for name in kind.schemas if name not in SCHEMA_FILES]
+        if unknown:
+            raise OnomasiaError("no schema file for " + ", ".join(unknown))
         self._validators = {
-            kind: Draft202012Validator(schemas[name], registry=registry)
-            for kind, name in SCHEMA_FILES.items()
+            name: Draft202012Validator(schemas[file], registry=registry)
+            for name, file in SCHEMA_FILES.items()
         }
 
-    def errors(self, kind: RecordKind, data: object) -> Iterator[tuple[str, str]]:
-        """Yield the pointer and the message of each violation of the schema of a format."""
-        for error in sorted(
-            self._validators[kind].iter_errors(data), key=lambda item: list(item.absolute_path)
-        ):
+    def errors(self, schema: str, data: object) -> Iterator[tuple[str, str]]:
+        """
+        Yield the pointer and the message of each violation of the schema of one version of a
+        format, named by its identifier, such as `onomasia:glossary@2`.
+
+        Raises
+        ------
+        OnomasiaError
+            If no packaged schema validates the version, which is a defect of Onomasia.
+        """
+        validator = self._validators.get(schema)
+        if validator is None:
+            raise OnomasiaError(f"no packaged schema of the format {schema}")
+        for error in sorted(validator.iter_errors(data), key=lambda item: list(item.absolute_path)):
             yield _pointer(error), error.message
 
     def contract_errors(self, schema: str, data: object) -> Iterator[tuple[str, str]]:

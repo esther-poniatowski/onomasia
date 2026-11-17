@@ -2,6 +2,7 @@
 
 from onomasia.issues import default_severities
 
+import test_imports
 import test_records
 import test_texts
 import test_typography
@@ -18,5 +19,6 @@ def test_every_check_of_the_catalog_is_planted() -> None:
         | {test_typography.UNRESOLVED_OUTPUT}
         | set(test_texts.PLANTED)
         | test_texts.TEXT_CHECKS
+        | set(test_imports.PLANTED)
     )
     assert set(default_severities()) == planted | SHOWN_WITHOUT_PLANTING

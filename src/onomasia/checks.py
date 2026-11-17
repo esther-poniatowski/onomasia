@@ -455,8 +455,9 @@ def check_entries(context: CheckContext) -> None:
 
 
 def _check_meaning(context: CheckContext, visible: Visible, entry: Entry, pointer: str) -> None:
-    """Check that an entry takes its meaning either from its target or from its gloss."""
-    if entry.denotes is None and entry.gloss is None:
+    """Check that an entry takes its meaning either from its unit or from its gloss, and that the
+    target of its unit names a repository once normalized."""
+    if not entry.declared and entry.gloss is None:
         _report(
             context,
             "missing-gloss",
@@ -464,7 +465,7 @@ def _check_meaning(context: CheckContext, visible: Visible, entry: Entry, pointe
             pointer,
             "an undeclared entry states its meaning in a gloss",
         )
-    elif entry.denotes is None:
+    elif not entry.declared:
         _report(context, "undeclared-entry", visible, pointer, "the entry denotes no unit")
     elif entry.gloss is not None:
         _report(
@@ -473,6 +474,15 @@ def _check_meaning(context: CheckContext, visible: Visible, entry: Entry, pointe
             visible,
             f"{pointer}/gloss",
             "the unit states the meaning of the entry",
+        )
+    if entry.denotes is not None and entry.denotes.repository is None:
+        _report(
+            context,
+            "unnormalized-target",
+            visible,
+            f"{pointer}/denotes",
+            f"{entry.denotes} names no repository, and the repository holding the notation "
+            "declares no identifier in repository.yml",
         )
 
 

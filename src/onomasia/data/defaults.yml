@@ -36,6 +36,9 @@ checks:
   duplicate-alias:
     severity: error
     gloss: two imports of one record bind the same alias
+  import-limit:
+    severity: error
+    gloss: an import would take the closure of a record beyond a limit of depth, records or bytes, so it is not followed
   duplicate-entry:
     severity: error
     gloss: two sections of one record declare the same identifier
@@ -81,6 +84,9 @@ checks:
   gloss-with-target:
     severity: error
     gloss: a notation entry denotes a unit and also carries a gloss, which the unit states
+  unnormalized-target:
+    severity: error
+    gloss: a target of a unit names no repository, and the repository holding the notation declares no identifier
   unresolved-overlay:
     severity: error
     gloss: an overlay names no notation to overlay
@@ -145,6 +151,60 @@ checks:
     severity: error
     gloss: a text cannot be read as UTF-8
 
+  # Kinds of the findings of the record resolver of Anagraphe on the source of an import into
+  # another repository, reported at the key from of the import under the kind of the finding. A
+  # finding that leaves the source unread is reported at the severity below; the three findings
+  # that let the source be read, renamed-repository, renamed-target and an unverified-target on a
+  # record read, are lowered to warning at most.
+  unknown-repository:
+    severity: error
+    gloss: the resolution context of the consumer selects no state of the repository of a source
+  renamed-repository:
+    severity: warning
+    gloss: a source names a retired repository identifier, which the resolver follows to its successor
+  unreadable-target-state:
+    severity: error
+    gloss: the selected state of the repository of a source is absent from the machine, or its access is denied
+  invalid-target-state:
+    severity: error
+    gloss: the bytes of the selected state of the repository of a source fail the verification of the provider
+  invalid-target-repository:
+    severity: error
+    gloss: the manifest or the configuration of the selected state of a source is absent, invalid, or declares another identifier
+  invalid-record-registry:
+    severity: error
+    gloss: the record registry of the selected state of a source violates its contract
+  unverified-target:
+    severity: error
+    gloss: the state of a source holds no record registry, or the consumer lacks the schemas of the contract of the source
+  unknown-record:
+    severity: error
+    gloss: no record of the repository of a source holds its identifier
+  renamed-target:
+    severity: warning
+    gloss: a source names a retired identifier, which the resolver follows to its successor
+  retired-target:
+    severity: error
+    gloss: a source names an identifier retired without a successor that reaches a record
+  escaping-target-path:
+    severity: error
+    gloss: the registered path of a source leaves the state of its repository
+  linked-target-path:
+    severity: error
+    gloss: the registered path of a source names a symbolic link
+  stale-target-registry:
+    severity: error
+    gloss: the registered path of a source names no file, or a record of another identifier
+  unreadable-record:
+    severity: error
+    gloss: the file of a source cannot be parsed as a record
+  target-contract-mismatch:
+    severity: error
+    gloss: the source of an import follows no contract of the format of the importing record
+  unbound-target:
+    severity: error
+    gloss: the source of an import declares no contract
+
 # Vocabularies read by the checks, replaced as a whole by the vocabularies of a consumer.
 vocabulary:
   # Each status may require a replacement, named by the key superseded_by of its entry.
@@ -186,3 +246,13 @@ texts:
   math: [inline-math, display-math]
   # Words admitted, one at most, before the slot of a frame.
   determiners: [the, a, an, this, that, these, those, each, every, its, their]
+
+# Limits of the closure of the imports of one record, for the keys that the section imports of a
+# consumer leaves out. Imported content cannot change them.
+imports:
+  # Levels of imports below a record, an import of the record opening the first level.
+  depth: 8
+  # Records of the closure, the record itself included.
+  records: 64
+  # Bytes of the documents of the records of the closure, 4 MiB.
+  bytes: 4194304

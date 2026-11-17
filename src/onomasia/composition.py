@@ -8,6 +8,13 @@ entries of its source are referenced as `alias.id` without being adopted. An ent
 record shadows a merged entry of the same identifier. The engine treats every section of every
 format alike, so it holds no rule of a particular format.
 
+The source of an import is a record of the consumer, or a record of another repository read through
+a `SourceReader`. The engine keys each record by its repository, its commit and its identifier, the
+commit of a record of the consumer standing empty, and composes each key once. The closure of a
+record holds the record and every record that its imports reach. The limits of the consumer bound
+the levels, the records and the bytes of each closure: an import exceeding one is reported, and is
+not followed.
+
 Classes
 -------
 Visible
@@ -21,7 +28,12 @@ Composer
 from dataclasses import dataclass, field, replace
 from typing import Iterable, Mapping
 
-from .issues import IssueSink
+from anagraphe.targets.model import Target
+
+from .configuration import ImportLimits
+from .imports import UNRESOLVED_IMPORT, SourceReader
+from .issues import IssueSink, Severity
+from .provenance import Input
 from .records.model import (
     Entry,
     Import,
@@ -34,6 +46,10 @@ from .records.model import (
 
 ALIAS_SEPARATOR = "."
 """Character between an alias and an identifier in a reference to a namespaced entry."""
+
+RecordKey = tuple[str | None, str | None, str]
+"""Repository, commit and identifier of a record; a record of the consumer has no commit, and no
+repository when the consumer declares none."""
 
 
 @dataclass(frozen=True)
@@ -69,12 +85,32 @@ class Composition:
     merged : tuple[tuple[str, Composition], ...]
         Composition of each merged source, with the pointer of the import merging it; for an
         overlay, the notation that it changes, with the pointer of its key `overlays`.
+    closure : Mapping[RecordKey, Record]
+        Records of the closure of the composed record, itself included, by key.
+    height : int
+        Levels of imports below the composed record, 0 for a record importing nothing.
     """
 
     record: Record
     sections: Mapping[str, Mapping[str, Visible]]
     namespaces: Mapping[str, "Composition"] = field(default_factory=dict)
     merged: tuple[tuple[str, "Composition"], ...] = ()
+    closure: Mapping[RecordKey, Record] = field(default_factory=dict)
+    height: int = 0
+
+    def inputs(self) -> tuple[Input, ...]:
+        """
+        Return the records of other repositories in the closure, ordered by repository, then
+        commit, then identifier.
+
+        Examples
+        --------
+        >>> from onomasia.records.model import Record, RecordKind
+        >>> record = Record(RecordKind.GLOSSARY, "g", "g.yml", (), {"terms": {}, "rules": {}})
+        >>> Composition(record, {"terms": {}, "rules": {}}).inputs()
+        ()
+        """
+        return tuple(sorted({item.origin for item in self.closure.values() if item.origin}))
 
     def lookup(self, section: str, reference: str) -> Visible | None:
         """
@@ -128,10 +164,27 @@ class Composer:
         Records of the consumer, of every format.
     sink : IssueSink
         Collector of the issues of composition.
+    repository : str | None
+        Identifier of the repository of the consumer, None when it declares none.
+    sources : SourceReader | None
+        Reader of the records of other repositories, None when the consumer reads none.
+    limits : ImportLimits
+        Limits of the closure of each record.
     """
 
-    def __init__(self, records: Iterable[Record], sink: IssueSink) -> None:
+    def __init__(
+        self,
+        records: Iterable[Record],
+        sink: IssueSink,
+        *,
+        repository: str | None = None,
+        sources: SourceReader | None = None,
+        limits: ImportLimits = ImportLimits(),
+    ) -> None:
         self._sink = sink
+        self._repository = repository
+        self._sources = sources
+        self._limits = limits
         self._records: dict[tuple[RecordKind, str], Record] = {}
         for record in records:
             key = (record.kind, record.identifier)
@@ -145,10 +198,10 @@ class Composer:
                 )
                 continue
             self._records[key] = record
-        self._done: dict[tuple[RecordKind, str], Composition | None] = {}
+        self._done: dict[tuple[RecordKind, RecordKey], Composition] = {}
 
     def records(self, kind: RecordKind) -> list[Record]:
-        """Return the records of a format, sorted by identifier."""
+        """Return the records of a format of the consumer, sorted by identifier."""
         return [
             record
             for (record_kind, _), record in sorted(
@@ -158,55 +211,165 @@ class Composer:
         ]
 
     def compose(self, kind: RecordKind, identifier: str) -> Composition | None:
-        """Compose a record, or None when it is unknown or lies on an import cycle."""
+        """Compose a record of the consumer, or None when the consumer holds no such record."""
         record = self._records.get((kind, identifier))
-        return None if record is None else self._compose(record, ())
+        return None if record is None else self._compose(record, ())[0]
 
-    def _compose(self, record: Record, stack: tuple[str, ...]) -> Composition | None:
-        """Compose a record, `stack` holding the identifiers of the records importing it."""
-        key = (record.kind, record.identifier)
+    def _key(self, record: Record) -> RecordKey:
+        """Return the repository, the commit and the identifier of a record."""
+        if record.origin is not None:
+            return (record.origin.repository, record.origin.commit, record.identifier)
+        return (self._repository, None, record.identifier)
+
+    def _label(self, record: Record) -> str:
+        """Name a record in a message: its identifier, with its repository when it lies in
+        another repository."""
+        return _named(self._key(record))
+
+    def _limit(self, record: Record, item: Import, message: str) -> None:
+        """Report an import that the composer does not follow, since it exceeds a limit."""
+        self._sink.report("import-limit", record.resource, f"{item.pointer}/from", message)
+
+    def _source(self, record: Record, item: Import) -> Record | None:
+        """Return the source record of an import, of the consumer or of another repository,
+        reporting at the key `from` the findings of its reading."""
+        target = item.source
+        pointer = f"{item.pointer}/from"
+        local: str | None = None
+        if target.repository is None or target.repository == self._repository:
+            local = target.id
+        elif self._sources is None:
+            self._sink.report(
+                UNRESOLVED_IMPORT,
+                record.resource,
+                pointer,
+                f"{target}: no reader of the records of other repositories is configured",
+            )
+            return None
+        else:
+            read = self._sources.read(target, record.kind)
+            for finding in read.findings:
+                check = finding.check if finding.check in self._sink.severities else None
+                message = finding.message if check else f"{finding.check}: {finding.message}"
+                self._sink.report(
+                    check or UNRESOLVED_IMPORT,
+                    record.resource,
+                    pointer,
+                    message,
+                    cap=None if finding.blocking else Severity.WARNING,
+                )
+            if read.local is None:
+                return read.record
+            local = read.local
+        source = self._records.get((record.kind, local or ""))
+        if source is None:
+            self._sink.report(
+                UNRESOLVED_IMPORT, record.resource, pointer, f"no {record.kind.singular} {local}"
+            )
+        return source
+
+    def _compose(
+        self, record: Record, stack: tuple[RecordKey, ...]
+    ) -> tuple[Composition | None, bool]:
+        """
+        Compose a record, `stack` holding the keys of the records importing it.
+
+        Returns
+        -------
+        tuple[Composition | None, bool]
+            Composition of the record, or None when it is unknown; and whether a limit of depth,
+            which depends on the place of the record below the record composed first, cut its
+            closure. Such a composition is not kept, so that the record composed alone is
+            composed again.
+        """
+        key = (record.kind, self._key(record))
         if key in self._done:
-            return self._done[key]
+            return self._done[key], False
         sections: dict[str, dict[str, Visible]] = {name: {} for name in record.kind.sections}
         namespaces: dict[str, Composition] = {}
         merged: list[tuple[str, Composition]] = []
+        closure: dict[RecordKey, Record] = {key[1]: record}
+        height = 0
+        cut = False
         for item in record.imports:
-            source = self._records.get((record.kind, item.source))
-            if source is None:
-                self._sink.report(
-                    "unresolved-import",
-                    record.resource,
-                    f"{item.pointer}/from",
-                    f"no {record.kind.singular} {item.source}",
-                )
-                continue
-            if source.identifier in stack + (record.identifier,):
-                path = " → ".join(stack + (record.identifier, source.identifier))
-                self._sink.report(
-                    "import-cycle", record.resource, f"{item.pointer}/from", f"cycle {path}"
-                )
-                continue
-            composed = self._compose(source, stack + (record.identifier,))
+            composed, partial = self._follow(record, item, stack + (key[1],))
+            cut = cut or partial
             if composed is None:
                 continue
-            self._check_selection(record, item, composed)
-            if item.alias is not None:
-                if item.alias in namespaces:
-                    self._sink.report(
-                        "duplicate-alias",
-                        record.resource,
-                        f"{item.pointer}/as",
-                        f"alias {item.alias} is bound twice",
-                    )
-                else:
-                    namespaces[item.alias] = composed
+            union = {**closure, **composed.closure}
+            if not self._within(record, item, union):
                 continue
-            self._merge(record, item, composed, sections)
-            merged.append((item.pointer, composed))
+            closure = union
+            height = max(height, composed.height + 1)
+            self._check_selection(record, item, composed)
+            if item.alias is None:
+                self._merge(record, item, composed, sections)
+                merged.append((item.pointer, composed))
+            elif item.alias in namespaces:
+                self._sink.report(
+                    "duplicate-alias",
+                    record.resource,
+                    f"{item.pointer}/as",
+                    f"alias {item.alias} is bound twice",
+                )
+            else:
+                namespaces[item.alias] = composed
         self._declare(record, sections)
-        composition = Composition(record, sections, namespaces, tuple(merged))
-        self._done[key] = composition
-        return composition
+        composition = Composition(record, sections, namespaces, tuple(merged), closure, height)
+        if not cut:
+            self._done[key] = composition
+        return composition, cut
+
+    def _follow(
+        self, record: Record, item: Import, path: tuple[RecordKey, ...]
+    ) -> tuple[Composition | None, bool]:
+        """
+        Compose the source of one import, `path` holding the keys from the record composed first
+        to the importing record.
+
+        Returns
+        -------
+        tuple[Composition | None, bool]
+            Composition of the source, or None when the import is not followed: a source left
+            unread, a cycle, or a limit of depth; and whether a limit of depth cut the closure.
+        """
+        level = len(path)
+        depth = self._limits.depth
+        if level > depth:
+            self._limit(record, item, f"the import opens level {level}, beyond {depth}")
+            return None, True
+        source = self._source(record, item)
+        if source is None:
+            return None, False
+        if self._key(source) in path:
+            labels = " → ".join(_named(member) for member in (*path, self._key(source)))
+            self._sink.report(
+                "import-cycle", record.resource, f"{item.pointer}/from", f"cycle {labels}"
+            )
+            return None, False
+        composed, cut = self._compose(source, path)
+        if composed is not None and level + composed.height > depth:
+            self._limit(
+                record,
+                item,
+                f"the closure of {self._label(source)} opens level {level + composed.height}, "
+                f"beyond {depth}",
+            )
+            return None, True
+        return composed, cut
+
+    def _within(self, record: Record, item: Import, union: Mapping[RecordKey, Record]) -> bool:
+        """Whether a closure stays within the limits of records and bytes, reporting the import
+        that would exceed one."""
+        size = sum(member.size for member in union.values())
+        if len(union) > self._limits.records:
+            message = f"the closure would hold {len(union)} records, beyond {self._limits.records}"
+        elif size > self._limits.size:
+            message = f"the closure would hold {size} bytes, beyond {self._limits.size}"
+        else:
+            return True
+        self._limit(record, item, message)
+        return False
 
     def _check_selection(self, record: Record, item: Import, source: Composition) -> None:
         """Report each identifier selected or excluded by an import but absent from its source."""
@@ -235,7 +398,7 @@ class Composer:
                 present = sections[name].get(identifier)
                 shadowed = identifier in record.sections.get(name, {})
                 if present is not None and not shadowed and not _same(present, visible):
-                    origins = f"{present.record.identifier} and {visible.record.identifier}"
+                    origins = f"{self._label(present.record)} and {self._label(visible.record)}"
                     self._sink.report(
                         "import-conflict",
                         record.resource,
@@ -313,7 +476,28 @@ class Composer:
                 continue
             assert isinstance(change, Override) and isinstance(present.entry, Entry)
             sections["entries"][identifier] = Visible(_overridden(present.entry, change), overlay)
-        return Composition(overlay, sections, notation.namespaces, (("/overlays", notation),))
+        return Composition(
+            overlay,
+            sections,
+            notation.namespaces,
+            (("/overlays", notation),),
+            notation.closure,
+            notation.height,
+        )
+
+
+def _named(key: RecordKey) -> str:
+    """
+    Name the record of a key in a message: its identifier for a record of the consumer, its
+    target for a record of another repository.
+
+    Examples
+    --------
+    >>> _named(("thesis", None, "project")), _named(("lexicon", "0" * 40, "base"))
+    ('project', '{repository: lexicon, id: base}')
+    """
+    repository, commit, identifier = key
+    return identifier if commit is None else str(Target(repository, identifier))
 
 
 def _same(first: Visible, second: Visible) -> bool:
