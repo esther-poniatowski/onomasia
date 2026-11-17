@@ -256,12 +256,17 @@ class _Builder:
         }
         for name in output.overlays:
             overlay = overlays.get(name)
-            if overlay is None or overlay.overlays not in output.notations:
+            changed = (
+                self._composer.local(overlay.overlays)
+                if overlay is not None and overlay.overlays is not None
+                else None
+            )
+            if overlay is None or changed is None or changed not in output.notations:
                 self._unresolved(
                     index, "overlays", f"no overlay {name} of the notations of the output"
                 )
                 return None
-            position = output.notations.index(overlay.overlays or "")
+            position = output.notations.index(changed)
             applied = self._composer.apply_overlay(overlay, compositions[position])
             if applied is not None:
                 compositions[position] = applied

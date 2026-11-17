@@ -25,7 +25,43 @@ properties:
           type: object
           additionalProperties: false
           required: [text, resource, pointer]
+          dependentRequired:
+            repository: [commit]
+            commit: [repository]
           properties:
             text: {type: string, minLength: 1}
-            resource: {type: string, minLength: 1}
+            resource:
+              type: string
+              minLength: 1
+              description: The path of the record declaring the term, within its own repository.
             pointer: {type: string}
+            repository:
+              $ref: 'https://github.com/esther-poniatowski/anagraphe/schemas/addressing.v1.schema.yml#/$defs/repository-id'
+              description: The repository of a record read from another repository, absent otherwise.
+            commit:
+              type: string
+              pattern: '^[0-9a-f]{40}([0-9a-f]{24})?$'
+              description: The commit at which a record of another repository was read.
+examples:
+  - contract: 'onomasia:term-table@1'
+    sources: []
+    inputs:
+      - repository: lexicon
+        commit: '1111111111111111111111111111111111111111'
+        id: base
+        sha256: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+    glossary: project
+    terms:
+      - id: curve
+        forms: [curve, curves]
+        status: in-use
+        gloss:
+          text: a one-dimensional set
+          resource: glossaries/base.yml
+          pointer: /terms/curve/gloss
+          repository: lexicon
+          commit: '1111111111111111111111111111111111111111'
+      - id: manifold
+        forms: [manifold]
+        status: in-use
+        gloss: {text: a smooth set, resource: glossary-project.yml, pointer: /terms/manifold/gloss}

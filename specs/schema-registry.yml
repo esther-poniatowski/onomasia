@@ -5,12 +5,14 @@ schemas:
   "onomasia:glossary@2": "src/onomasia/data/schemas/glossary.schema.yml"
   "onomasia:notation@1": "src/onomasia/data/schemas/notation.v1.schema.yml"
   "onomasia:notation@2": "src/onomasia/data/schemas/notation.schema.yml"
-  "onomasia:overlay@1": "src/onomasia/data/schemas/overlay.schema.yml"
+  "onomasia:overlay@1": "src/onomasia/data/schemas/overlay.v1.schema.yml"
+  "onomasia:overlay@2": "src/onomasia/data/schemas/overlay.schema.yml"
 exports:
   - "onomasia:glossary@1"
   - "onomasia:glossary@2"
   - "onomasia:notation@1"
   - "onomasia:notation@2"
   - "onomasia:overlay@1"
+  - "onomasia:overlay@2"
 resources:
   "https://github.com/esther-poniatowski/anagraphe/schemas/addressing.v1.schema.yml": ".kleisis/resources/anagraphe/src/anagraphe/data/schemas/addressing.v1.schema.yml"

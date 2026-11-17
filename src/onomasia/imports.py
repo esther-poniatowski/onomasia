@@ -215,6 +215,7 @@ class AnagrapheSources:
             provenance.commit,
             resolution.target.id,
             hashlib.sha256(read.data).hexdigest(),
+            provenance.path,
         )
         document = RawDocument(
             f"{provenance.repository}:{provenance.path}", read.data.decode("utf-8"), kind

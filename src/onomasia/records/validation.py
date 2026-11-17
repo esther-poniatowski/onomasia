@@ -33,7 +33,8 @@ SCHEMA_FILES = {
     "onomasia:glossary@2": "glossary.schema.yml",
     "onomasia:notation@1": "notation.v1.schema.yml",
     "onomasia:notation@2": "notation.schema.yml",
-    "onomasia:overlay@1": "overlay.schema.yml",
+    "onomasia:overlay@1": "overlay.v1.schema.yml",
+    "onomasia:overlay@2": "overlay.schema.yml",
 }
 """Schema file of each version of each format, in the package folder of the schemas."""
 

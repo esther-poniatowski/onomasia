@@ -1,18 +1,25 @@
-# Format of an overlay: the changes that one projection applies to a notation. An overlay changes
-# only templates, bodies, bases and classes, so that every macro name, argument and target of the
-# notation holds under it.
+# Format of an overlay, onomasia:overlay@2: the changes that one projection applies to a notation.
+# An overlay changes only templates, bodies, bases and classes, so that every macro name, argument
+# and target of the notation holds under it. The key overlays names the notation by an identifier,
+# or by a logical target into another repository. The file overlay.v1.schema.yml keeps
+# onomasia:overlay@1, which Onomasia still reads.
 $schema: https://json-schema.org/draft/2020-12/schema
 $id: overlay.schema.yml
 title: Overlay
 type: object
 additionalProperties: false
+# The identifier of the record, which a logical target of Anagraphe names.
+x-identifier: id
 required: [_schema, id, overlays]
 properties:
-  _schema: {const: 'onomasia:overlay@1'}
+  _schema: {const: 'onomasia:overlay@2'}
   id: {$ref: 'common.schema.yml#/$defs/id'}
   overlays:
-    $ref: 'common.schema.yml#/$defs/id'
-    description: Identifier of the notation that the overlay changes.
+    $ref: 'common.schema.yml#/$defs/import-source'
+    description: The notation that the overlay changes, by its identifier or by a logical target.
+    # The record named by a target follows a notation contract, which the check of the targets of
+    # Anagraphe verifies.
+    x-target-contract: ['onomasia:notation']
   metadata: {type: object, description: Fields of the consumer, which Onomasia does not read.}
   classes:
     type: object
@@ -29,3 +36,11 @@ properties:
         body: {$ref: 'common.schema.yml#/$defs/text'}
         base: {$ref: 'common.schema.yml#/$defs/text'}
         class: {$ref: 'common.schema.yml#/$defs/ref'}
+examples:
+  - _schema: 'onomasia:overlay@2'
+    id: poster
+    overlays: {repository: mixture-input-encoding, id: mixture}
+    classes:
+      matrix: {template: '\mathbf{{{base}}}'}
+    entries:
+      w-ff: {base: V}

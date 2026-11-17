@@ -169,19 +169,26 @@ SECTION_PARSERS: dict[RecordKind, dict[str, Callable[[Data, str | None], Section
 """Parser of the entries of each section of each format, given the repository holding the record."""
 
 
+def _reference(value: object, repository: str | None) -> Target | None:
+    """Read the key naming another record, an identifier or a target, normalized by the repository
+    holding the record; None when the key is absent."""
+    if value is None:
+        return None
+    if isinstance(value, Mapping):
+        return _target(value, repository)
+    return Target(repository, str(value))
+
+
 def _imports(data: Data, repository: str | None) -> tuple[Import, ...]:
     """Read the imports of a record, each with its pointer, and its source normalized."""
     imports: list[Import] = []
     for index, item in enumerate(cast(Sequence[Data], _list(data, "imports"))):
         only = item.get("only")
-        source = item["from"]
+        source = _reference(item["from"], repository)
+        assert source is not None
         imports.append(
             Import(
-                source=(
-                    _target(source, repository)
-                    if isinstance(source, Mapping)
-                    else Target(repository, str(source))
-                ),
+                source=source,
                 alias=_text(item, "as"),
                 only=frozenset(cast(Sequence[str], only)) if only is not None else None,
                 excluded=frozenset(cast(Sequence[str], item.get("except") or ())),
@@ -235,7 +242,7 @@ def parse_record(  # pylint: disable=too-many-arguments
         resource=resource,
         imports=_imports(data, repository),
         sections=sections,
-        overlays=_text(data, "overlays"),
+        overlays=_reference(data.get("overlays"), repository),
         origin=origin,
         size=size,
     )

@@ -81,9 +81,10 @@ $defs:
     items: {$ref: '#/$defs/import'}
   import-source:
     description: >-
-      The source record of an import: an identifier, naming a record of the repository holding
-      the importing record, or a logical target of Anagraphe, naming a record of any repository.
-      A target without repository names the repository holding the importing record.
+      The record named by the source of an import, or by the notation of an overlay: an
+      identifier, naming a record of the repository holding the naming record, or a logical target
+      of Anagraphe, naming a record of any repository. A target without repository names the
+      repository holding the naming record.
     oneOf:
       - {$ref: '#/$defs/id'}
       - $ref: 'https://github.com/esther-poniatowski/anagraphe/schemas/addressing.v1.schema.yml#/$defs/target'

@@ -55,7 +55,7 @@ class RecordKind(Enum):
 
     GLOSSARY = ("onomasia:glossary", (1, 2), "glossary", "glossaries", ("terms", "rules"))
     NOTATION = ("onomasia:notation", (1, 2), "notation", "notations", ("classes", "entries"))
-    OVERLAY = ("onomasia:overlay", (1,), "overlay", "overlays", ("classes", "entries"))
+    OVERLAY = ("onomasia:overlay", (1, 2), "overlay", "overlays", ("classes", "entries"))
 
     def __init__(
         self,
@@ -376,8 +376,9 @@ class Record:  # pylint: disable=too-many-instance-attributes
         Sources of entries, in order.
     sections : Mapping[str, Mapping[str, SectionEntry]]
         Entries of each section, keyed by identifier.
-    overlays : str | None
-        Identifier of the notation that an overlay overlays.
+    overlays : Target | None
+        Notation that an overlay changes, normalized as the source of an import is; None for a
+        glossary or a notation.
     origin : Input | None
         Repository, commit, identifier and digest of a record read from another repository, None
         for a record of the consumer.
@@ -390,6 +391,6 @@ class Record:  # pylint: disable=too-many-instance-attributes
     resource: str
     imports: tuple[Import, ...]
     sections: Mapping[str, Mapping[str, SectionEntry]]
-    overlays: str | None = None
+    overlays: Target | None = None
     origin: Input | None = None
     size: int = 0

@@ -37,7 +37,7 @@ import yaml
 from .composition import Composition
 from .issues import IssueSink
 from .provenance import Input, Source
-from .records.model import Term
+from .records.model import Record, Term
 from .records.validation import SchemaValidator
 from .typography.table import MacroTable, TargetSignature
 
@@ -203,6 +203,21 @@ def macro_lookup_document(table: MacroTable, sources: tuple[Source, ...]) -> dic
     return document
 
 
+def _gloss(text: str, record: Record, pointer: str) -> dict[str, object]:
+    """Locate a gloss: the path of its record within its repository and its pointer, with the
+    repository and the commit of a record read from another repository."""
+    origin = record.origin
+    gloss: dict[str, object] = {
+        "text": text,
+        "resource": origin.path if origin is not None else record.resource,
+        "pointer": pointer,
+    }
+    if origin is not None:
+        gloss["repository"] = origin.repository
+        gloss["commit"] = origin.commit
+    return gloss
+
+
 def term_table_document(
     composition: Composition, sources: tuple[Source, ...], default_status: str
 ) -> dict[str, object]:
@@ -221,11 +236,7 @@ def term_table_document(
                 "id": identifier,
                 "forms": forms,
                 "status": term.status or default_status,
-                "gloss": {
-                    "text": term.gloss,
-                    "resource": visible.record.resource,
-                    "pointer": f"/terms/{identifier}/gloss",
-                },
+                "gloss": _gloss(term.gloss, visible.record, f"/terms/{identifier}/gloss"),
             }
         )
     document["terms"] = terms

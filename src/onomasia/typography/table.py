@@ -288,7 +288,12 @@ def build_macro_table(
     checks.unique(built)
     checks.acyclic(built)
     notations = tuple(
-        composition.record.overlays or composition.record.identifier for composition in compositions
+        (
+            composition.record.overlays.id or ""
+            if composition.record.overlays is not None
+            else composition.record.identifier
+        )
+        for composition in compositions
     )
     macros = tuple(sorted((macro for macro, _ in built), key=lambda macro: macro.name))
     inputs = tuple(sorted({item for composition in compositions for item in composition.inputs()}))

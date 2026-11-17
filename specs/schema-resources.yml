@@ -10,6 +10,7 @@ exports:
   - onomasia:notation@1
   - onomasia:notation@2
   - onomasia:overlay@1
+  - onomasia:overlay@2
 
 dependencies:
   # Anagraphe supplies the addressing primitives that the logical targets of onomasia:glossary@2

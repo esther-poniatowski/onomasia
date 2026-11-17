@@ -24,10 +24,14 @@ from anagraphe.targets.declarations import Declarations
 import pytest
 import yaml
 
+from onomasia.composition import Composer
 from onomasia.configuration import ImportLimits, load_configuration
 from onomasia.contracts import CONTRACT_SCHEMAS, MACRO_LOOKUP, MACRO_TABLE, TERM_TABLE
 from onomasia.errors import ConfigurationError
-from onomasia.imports import FOLLOWED
+from onomasia.imports import FOLLOWED, AnagrapheSources, consumer_repository
+from onomasia.issues import IssueSink
+from onomasia.records.model import RecordKind
+from onomasia.repository import FileRecordSource, load_records
 from onomasia.issues import Severity
 from onomasia.provenance import Source
 from onomasia.records.validation import SCHEMA_FILES, SchemaValidator
@@ -200,7 +204,11 @@ def _consumer(
         },
         "onomasia.yml": {
             "_schema": "onomasia:configuration@1",
-            "records": {"glossaries": ["glossary-*.yml"], "notations": ["notation-*.yml"]},
+            "records": {
+                "glossaries": ["glossary-*.yml"],
+                "notations": ["notation-*.yml"],
+                "overlays": ["overlay-*.yml"],
+            },
             **({"imports": imports} if imports is not None else {}),
             "build": {
                 "denotes_targets": ["targets.yml"] if "targets.yml" in records else [],
@@ -232,9 +240,13 @@ def _document(root: Path, name: str) -> dict:
     return yaml.safe_load((root / "out" / name).read_text(encoding="utf-8"))
 
 
-def _terms(root: Path) -> dict[str, str]:
-    """Read the term table of the glossary `project`: the resource declaring each term."""
-    return {term["id"]: term["gloss"]["resource"] for term in _document(root, "terms.yml")["terms"]}
+def _terms(root: Path) -> dict[str, tuple[str | None, str]]:
+    """Read the term table of the glossary `project`: the repository, None for the consumer, and
+    the path within it of the record declaring each term."""
+    return {
+        term["id"]: (term["gloss"].get("repository"), term["gloss"]["resource"])
+        for term in _document(root, "terms.yml")["terms"]
+    }
 
 
 # --- composition across repositories ------------------------------------------------------------
@@ -245,9 +257,9 @@ def test_glossary_imports_a_glossary_of_another_repository(tmp_path: Path) -> No
     result = _build(root, MemoryProvider(_states()))
     assert result.issues == []
     assert _terms(root) == {
-        "curve": "lexicon:base.yml",
-        "gain": "lexicon:base.yml",
-        "manifold": "glossary-project.yml",
+        "curve": (LEXICON, "base.yml"),
+        "gain": (LEXICON, "base.yml"),
+        "manifold": (None, "glossary-project.yml"),
     }
 
 
@@ -262,11 +274,11 @@ def test_identifier_in_a_source_names_a_record_of_its_repository(tmp_path: Path)
     root = _consumer(tmp_path, {"glossary-project.yml": PROJECT, "glossary-core.yml": local_core})
     assert _build(root, MemoryProvider(_states(lexicon))).issues == []
     assert _terms(root) == {
-        "curve": "lexicon:base.yml",
-        "manifold": "glossary-project.yml",
-        "rate": "lexicon:core.yml",
-        "slope": "lexicon:extra.yml",
-        "torus": "atlas:shapes.yml",
+        "curve": (LEXICON, "base.yml"),
+        "manifold": (None, "glossary-project.yml"),
+        "rate": (LEXICON, "core.yml"),
+        "slope": (LEXICON, "extra.yml"),
+        "torus": (ATLAS, "shapes.yml"),
     }
 
 
@@ -277,7 +289,7 @@ def test_target_in_a_source_names_a_repository_of_the_consumer_context(tmp_path:
     local = _glossary("local", {"own": "own"})
     root = _consumer(tmp_path, {"glossary-project.yml": PROJECT, "glossary-local.yml": local})
     assert _build(root, MemoryProvider(_states({"base.yml": base}))).issues == []
-    assert _terms(root)["own"] == "glossary-local.yml"
+    assert _terms(root)["own"] == (None, "glossary-local.yml")
 
 
 def test_repeated_source_is_read_once(tmp_path: Path) -> None:
@@ -296,7 +308,7 @@ def test_repeated_source_is_read_once(tmp_path: Path) -> None:
     root = _consumer(tmp_path, {"glossary-project.yml": project})
     assert _build(root, provider).issues == []
     assert provider.reads[(COMMITS[LEXICON], "base.yml")] == 1
-    assert _terms(root)["torus"] == "atlas:shapes.yml"
+    assert _terms(root)["torus"] == (ATLAS, "shapes.yml")
 
 
 @pytest.mark.parametrize(
@@ -373,7 +385,7 @@ def test_source_read_without_the_schemas_of_its_contract_is_a_warning(tmp_path: 
     assert [(issue.check, issue.severity, issue.pointer) for issue in issues] == [
         ("unverified-target", Severity.WARNING, "/imports/0/from")
     ]
-    assert _terms(root)["curve"] == "lexicon:base.yml"
+    assert _terms(root)["curve"] == (LEXICON, "base.yml")
 
 
 def _target(identifier: str, repository: str = LEXICON) -> dict[str, str]:
@@ -490,7 +502,7 @@ def test_followed_rename_is_a_warning_and_reads_the_source(tmp_path: Path, check
     root = _consumer(tmp_path, {"glossary-project.yml": project})
     result = _build(root, _provider(states))
     assert [(issue.check, issue.severity) for issue in result.issues] == [(check, Severity.WARNING)]
-    assert _terms(root)["curve"] == "lexicon:base.yml"
+    assert _terms(root)["curve"] == (LEXICON, "base.yml")
 
 
 # --- the limits of a closure --------------------------------------------------------------------
@@ -612,7 +624,7 @@ def test_records_of_version_1_are_still_read(tmp_path: Path) -> None:
         outputs=outputs,
     )
     assert _build(root, MemoryProvider(_states({"base.yml": base, "core.yml": core}))).issues == []
-    assert _terms(root)["rate"] == "lexicon:core.yml"
+    assert _terms(root)["rate"] == (LEXICON, "core.yml")
     [entry] = _document(root, "table.yml")["entries"]
     assert (entry["target"], entry["arity"]) == (None, 0)
 
@@ -693,6 +705,227 @@ def test_denotes_is_normalized_by_the_repository_holding_the_notation(tmp_path: 
         assert list(SchemaValidator().contract_errors(CONTRACT_SCHEMAS[contract], data)) == []
 
 
+# --- the overlays of a notation of another repository -----------------------------------------
+
+
+MIXTURE = {
+    "_schema": "onomasia:notation@2",
+    "id": "mixture",
+    "classes": {"matrix": {"template": "\\boldsymbol{{{base}}}"}},
+    "entries": {
+        "w-ff": {"denotes": {"id": "model", "unit": "weights"}, "base": "W", "class": "matrix"}
+    },
+}
+
+POSTER = {
+    "_schema": "onomasia:overlay@2",
+    "id": "poster",
+    "overlays": {"repository": LEXICON, "id": "mixture"},
+    "entries": {"w-ff": {"base": "V"}},
+}
+
+
+def _compose_overlay(root: Path, provider: StateProvider) -> tuple[object, IssueSink]:
+    """Apply the overlay `poster` of a consumer through the composer, returning the composition
+    and the issues."""
+    configuration = load_configuration(root, root / "onomasia.yml")
+    sink = IssueSink(configuration.severities)
+    validator = SchemaValidator()
+    repository = consumer_repository(root)
+    composer = Composer(
+        load_records(FileRecordSource(root, configuration.records), validator, sink, repository),
+        sink,
+        repository=repository,
+        sources=AnagrapheSources(root, provider, validator, sink),
+        limits=configuration.imports,
+    )
+    [overlay] = composer.records(RecordKind.OVERLAY)
+    return composer.apply_overlay(overlay), sink
+
+
+def test_overlay_changes_a_notation_of_another_repository(tmp_path: Path) -> None:
+    states = _states({"mixture.yml": MIXTURE})
+    root = _consumer(tmp_path, {"overlay-poster.yml": POSTER}, outputs=[])
+    composition, sink = _compose_overlay(root, MemoryProvider(states))
+    assert sink.issues == []
+    assert composition is not None
+    entry = composition.sections["entries"]["w-ff"]  # type: ignore[attr-defined]
+    assert entry.entry.base == "V" and entry.record.identifier == "poster"
+    assert [(item.repository, item.identifier) for item in composition.inputs()] == [
+        (LEXICON, "mixture")
+    ]  # type: ignore[attr-defined]
+    assert _issues(root, MemoryProvider(states)) == []
+
+
+def test_overlay_overriding_an_entry_absent_from_the_remote_notation_is_reported(
+    tmp_path: Path,
+) -> None:
+    poster = dict(POSTER, entries={"absent": {"body": "x"}})
+    root = _consumer(tmp_path, {"overlay-poster.yml": poster}, outputs=[])
+    issues = _issues(root, MemoryProvider(_states({"mixture.yml": MIXTURE})))
+    assert issues == [("unknown-override", "overlay-poster.yml", "/entries/absent")]
+
+
+def test_unread_notation_of_an_overlay_is_an_error_at_its_key(tmp_path: Path) -> None:
+    root = _consumer(tmp_path, {"overlay-poster.yml": POSTER}, outputs=[])
+    issues = _build(root, MemoryProvider({})).issues
+    assert [(issue.check, issue.severity, issue.resource, issue.pointer) for issue in issues] == [
+        ("unreadable-target-state", Severity.ERROR, "overlay-poster.yml", "/overlays")
+    ]
+
+
+def test_overlay_is_held_within_the_limits_of_its_closure(tmp_path: Path) -> None:
+    """The closure of the overlay holds itself and the notation: two records."""
+    states = _states({"mixture.yml": MIXTURE})
+    root = _consumer(tmp_path, {"overlay-poster.yml": POSTER}, imports={"records": 1}, outputs=[])
+    assert _issues(root, MemoryProvider(states)) == [
+        ("import-limit", "overlay-poster.yml", "/overlays")
+    ]
+
+
+def test_overlay_naming_an_absent_notation_of_the_consumer_is_unresolved(tmp_path: Path) -> None:
+    poster = dict(POSTER, overlays={"id": "absent"})
+    root = _consumer(tmp_path, {"overlay-poster.yml": poster}, outputs=[])
+    assert _issues(root, MemoryProvider({})) == [
+        ("unresolved-overlay", "overlay-poster.yml", "/overlays")
+    ]
+
+
+@pytest.mark.parametrize("version", [1, 2])
+def test_overlay_of_a_notation_of_the_consumer_applies_in_the_build(
+    tmp_path: Path, version: int
+) -> None:
+    """An overlay of version 1 names the notation by its identifier, as one of version 2 may."""
+    poster = dict(POSTER, _schema=f"onomasia:overlay@{version}", overlays="mixture")
+    outputs = [
+        {
+            "product": "macro-table",
+            "notations": ["mixture"],
+            "overlays": ["poster"],
+            "path": "out/table.yml",
+        }
+    ]
+    root = _consumer(
+        tmp_path,
+        {"notation-mixture.yml": MIXTURE, "overlay-poster.yml": poster},
+        outputs=outputs,
+    )
+    assert _build(root, MemoryProvider({})).issues == []
+    [entry] = _document(root, "table.yml")["entries"]
+    assert entry["body"] == "\\boldsymbol{V}"
+
+
+def test_overlay_of_version_1_rejects_a_target(tmp_path: Path) -> None:
+    poster = dict(POSTER, _schema="onomasia:overlay@1")
+    root = _consumer(tmp_path, {"overlay-poster.yml": poster}, outputs=[])
+    assert ("schema-violation", "overlay-poster.yml", "/overlays") in _issues(
+        root, MemoryProvider({})
+    )
+
+
+# --- the inputs of the serializations -----------------------------------------------------------
+
+
+SERIALIZATIONS = [
+    {"product": "latex-package", "notations": ["local"], "path": "out/local.sty"},
+    {"product": "mathjax-preamble", "notations": ["local"], "path": "out/preamble.sty"},
+    {"product": "python-expander", "notations": ["local"], "path": "out/local_notation.py"},
+]
+
+
+def _local_notation(imports: list[dict]) -> dict:
+    """Write the notation `local` of the consumer, with one entry and its imports."""
+    return {
+        "_schema": "onomasia:notation@2",
+        "id": "local",
+        "imports": imports,
+        "entries": {
+            "lam": {"denotes": {"id": "model", "unit": "lam"}, "body": "\\lambda", "name": "lam"}
+        },
+    }
+
+
+def _serialized(root: Path, provider: StateProvider) -> tuple[list[str], list[str], list[dict]]:
+    """Build the three serializations, returning the lines of the package and of the preamble,
+    and the inputs of the expander."""
+    assert _build(root, provider).issues == []
+    package = (root / "out" / "local.sty").read_text(encoding="utf-8").splitlines()
+    preamble = (root / "out" / "preamble.sty").read_text(encoding="utf-8").splitlines()
+    namespace: dict[str, object] = {}
+    exec(  # pylint: disable=exec-used
+        (root / "out" / "local_notation.py").read_text(encoding="utf-8"), namespace
+    )
+    return package, preamble, namespace["INPUTS"]  # type: ignore[return-value]
+
+
+def test_serializations_state_each_input_in_order(tmp_path: Path) -> None:
+    lexicon = {
+        "zeta.yml": {"_schema": "onomasia:notation@2", "id": "zeta", "entries": {}},
+        "alpha.yml": {"_schema": "onomasia:notation@2", "id": "alpha", "entries": {}},
+    }
+    shapes = {"_schema": "onomasia:notation@2", "id": "shapes", "entries": {}}
+    notation = _local_notation(
+        [
+            {"from": {"repository": LEXICON, "id": "zeta"}},
+            {"from": {"repository": ATLAS, "id": "shapes"}},
+            {"from": {"repository": LEXICON, "id": "alpha"}},
+        ]
+    )
+    states = _states(lexicon, {"shapes.yml": shapes})
+    root = _consumer(tmp_path, {"notation-local.yml": notation}, outputs=SERIALIZATIONS)
+    package, preamble, inputs = _serialized(root, MemoryProvider(states))
+
+    def item(repository: str, identifier: str, path: str) -> dict[str, str]:
+        data = states[COMMITS[repository]][path].data
+        digest = hashlib.sha256(data).hexdigest()
+        return {
+            "repository": repository,
+            "commit": COMMITS[repository],
+            "id": identifier,
+            "sha256": digest,
+        }
+
+    expected = [item(ATLAS, "shapes", "shapes.yml"), item(LEXICON, "alpha", "alpha.yml")]
+    expected.append(item(LEXICON, "zeta", "zeta.yml"))
+    lines = [f"% {i['repository']} {i['commit']} {i['id']} {i['sha256']}" for i in expected]
+    assert package[1:4] == lines and package[4] == "\\NeedsTeXFormat{LaTeX2e}"
+    assert preamble[1:4] == lines and preamble[4] == "\\newcommand{\\lam}{\\lambda}"
+    assert inputs == expected
+
+
+def test_serializations_without_imported_records_state_no_input(tmp_path: Path) -> None:
+    root = _consumer(tmp_path, {"notation-local.yml": _local_notation([])}, outputs=SERIALIZATIONS)
+    package, preamble, inputs = _serialized(root, MemoryProvider({}))
+    assert package[1] == "\\NeedsTeXFormat{LaTeX2e}"
+    assert preamble[1:] == ["\\newcommand{\\lam}{\\lambda}"]
+    assert inputs == []
+
+
+# --- the location of a gloss --------------------------------------------------------------------
+
+
+def test_gloss_of_a_remote_term_names_its_repository_its_commit_and_its_path(
+    tmp_path: Path,
+) -> None:
+    root = _consumer(tmp_path, {"glossary-project.yml": PROJECT})
+    assert _build(root, MemoryProvider(_states({"lexicons/base.yml": BASE}))).issues == []
+    data = _document(root, "terms.yml")
+    glosses = {term["id"]: term["gloss"] for term in data["terms"]}
+    assert glosses["curve"] == {
+        "text": "the curve",
+        "resource": "lexicons/base.yml",
+        "pointer": "/terms/curve/gloss",
+        "repository": LEXICON,
+        "commit": COMMITS[LEXICON],
+    }
+    assert glosses["manifold"] == {
+        "text": "the manifold",
+        "resource": "glossary-project.yml",
+        "pointer": "/terms/manifold/gloss",
+    }
+    assert not list(SchemaValidator().contract_errors(CONTRACT_SCHEMAS[TERM_TABLE], data))
+
+
 # --- the schemas --------------------------------------------------------------------------------
 
 
@@ -717,6 +950,8 @@ def test_the_schemas_published_with_the_targets_carry_examples() -> None:
         "macro-lookup.schema.yml",
         "macro-table.schema.yml",
         "notation.schema.yml",
+        "overlay.schema.yml",
+        "term-table.schema.yml",
     ]
 
 
@@ -769,6 +1004,7 @@ def test_anagraphe_reads_the_target_fields_of_the_registered_schemas() -> None:
                 "entries.*.denotes": (False, ()),
             },
         ),
+        ("onomasia:overlay@2", {"overlays": (True, (("onomasia:notation",),))}),
     ):
         schema = declarations.of(contract)
         assert schema is not None and schema.identifier == ("id",)

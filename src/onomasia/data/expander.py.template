@@ -13,6 +13,10 @@ MACROS = $MACROS
 SOURCES = $SOURCE_DATA
 """Repository, commit and state of the records from which the macros were generated."""
 
+INPUTS = $INPUT_DATA
+"""Repository, commit, identifier and sha256 digest of each record of another repository imported
+into the notations, ordered by repository, then commit, then identifier."""
+
 
 def expand(text):
     """Replace each macro of the table by its body, its arguments substituted, until none remains."""

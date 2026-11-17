@@ -24,7 +24,7 @@ public_location(url) -> str
     The location of a repository without the user information of its URL.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 import re
 import subprocess
@@ -82,12 +82,16 @@ class Input:
         Identifier of the record.
     sha256 : str
         Hexadecimal sha256 digest of the bytes of the record at that commit.
+    path : str
+        Path of the record within its repository, which the receipt does not list and which
+        neither the order nor the equality of inputs compares.
     """
 
     repository: str
     commit: str
     identifier: str
     sha256: str
+    path: str = field(default="", compare=False)
 
     def to_data(self) -> dict[str, object]:
         """Return the plain-data form of one item of the block `inputs` of a contract."""
