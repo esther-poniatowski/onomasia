@@ -31,6 +31,10 @@ An entry of `onomasia:notation@1` names its unit under `denotes`, as a text. [AD
 
 **A canonical text as the key of the lookup.** The lookup would keep an object, keyed by a text such as `repository/id#unit`. A reader could look a unit up directly. However, every read side would implement that encoding and its escaping, and the encoding would form a second notation of a target beside the mapping of Anagraphe.
 
+## Amendment of 2026-11-17
+
+**Denotes targets without repository.** `onomasia:denotes-targets@3` replaces `onomasia:denotes-targets@2`: a target of the denotes targets may omit `repository`, and then names a unit of the consumer. Onomasia normalizes it by the identifier of the consumer, as it normalizes the targets of a notation. The outputs of Onomasia still carry normalized targets. To write normalized targets, a producer had to read the identifier of its repository from the manifest of Anagraphe, a file of another tool. The reader of the document already holds that identifier. No repository read `onomasia:denotes-targets@2`, so the new version replaces it without a migration. ^relative-denotes
+
 ## Open points
 
-- Gnomon writes the denotes targets in the form of `onomasia:denotes-targets@2`, with its command `gnomon denotes-targets`. A repository reads them once its configuration of Onomasia names the generated file under `build.denotes_targets`, and no repository names one yet.
+- Gnomon writes the denotes targets in the form of `onomasia:denotes-targets@3`, with its command `gnomon denotes-targets`. A repository reads them once its configuration of Onomasia names the generated file under `build.denotes_targets`, and no repository names one yet.

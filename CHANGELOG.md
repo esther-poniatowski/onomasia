@@ -53,9 +53,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
-- **Breaking:** Onomasia reads `onomasia:denotes-targets@2` and writes `onomasia:macro-table@2` and
-  `onomasia:macro-lookup@2`. Each unit is a normalized target, matched with an entry by that
-  target. The lookup lists its units under `targets` as an array of `{target, name}`, ordered by
+- **Breaking:** Onomasia reads `onomasia:denotes-targets@3` and writes `onomasia:macro-table@2` and
+  `onomasia:macro-lookup@2`. A target of the denotes targets may omit `repository`, and then names
+  a unit of the consumer: Onomasia normalizes it by the identifier of the consumer. Each unit is
+  matched with an entry by its normalized target. The lookup lists its units under `targets` as an array of `{target, name}`, ordered by
   the repository, the identifier and the unit of the target.
 - The schemas of `onomasia:glossary@1` and `onomasia:notation@1` move to `glossary.v1.schema.yml`
   and `notation.v1.schema.yml`; Onomasia still reads both versions.

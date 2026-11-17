@@ -11,7 +11,7 @@ The contracts of Onomasia fix the documents exchanged between Onomasia and the o
 
 | Contract | Producer | Consumers | Schema |
 | --- | --- | --- | --- |
-| `onomasia:denotes-targets@2` | Gnomon | Onomasia | `denotes-targets.schema.yml` |
+| `onomasia:denotes-targets@3` | Gnomon | Onomasia | `denotes-targets.schema.yml` |
 | `onomasia:scope-table@1` | Ekthesis | the checks of texts of Onomasia | `scope-table.schema.yml` |
 | `onomasia:macro-table@2` | Onomasia | Gnomon | `macro-table.schema.yml` |
 | `onomasia:macro-lookup@2` | Onomasia | the views of Gnomon, the documents rendered by Ekthesis | `macro-lookup.schema.yml` |
@@ -36,11 +36,11 @@ A document written by Onomasia also lists under `inputs` each record of another 
 
 The items follow the order of the repository, then the commit, then the identifier. The block is optional. When the records of a document import from no other repository, the document omits the block. ^inputs
 
-Every document naming a unit names it by a *normalized* logical target `{repository, id, unit}`, with its repository filled in. A reader of the document may lie in another repository. ^targets
+Every document written by Onomasia names a unit by a *normalized* logical target `{repository, id, unit}`, with its repository filled in. A reader of the document may lie in another repository. The denotes targets, read by Onomasia, may omit `repository`, so that their producer needs no identifier of the repository. ^targets
 
 ## Inputs
 
-The *denotes targets* list the [units](formats.md#^meaning), each under `target` as a normalized target, with the arguments read by Onomasia. Onomasia matches a unit with an entry by their normalized targets, never by a text. Each unit declares three properties of its arguments:
+The *denotes targets* list the [units](formats.md#^meaning), each under `target` as a logical target, with the arguments read by Onomasia. A target without `repository` names a unit of the consumer, so Onomasia normalizes it by the identifier of the consumer. Onomasia then matches a unit with an entry by their normalized targets, never by a text. Each unit declares three properties of its arguments:
 
 - `arity`, the number of its arguments;
 - `binder`, the position, counted from 1, of the argument binding a variable;
