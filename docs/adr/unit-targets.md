@@ -25,7 +25,7 @@ An entry of `onomasia:notation@1` names its unit under `denotes`, as a text. [AD
 
 - An object of JSON takes a string as a key, so a lookup keyed by a target needs a string encoding of the target, or the form of an array.
 - The [versioning rule](../contracts.md#^versioning) of Onomasia starts the next version of a contract when a key admits a new value.
-- On 2026-11-17, no notation uses `denotes`, no tool reads the macro table or the lookup, and Gnomon generates no denotes targets yet. Therefore, the new versions replace the first ones without a migration of a consumer.
+- On 2026-11-17, every notation leaves `denotes` empty, the macro table and the lookup have no reader, and the generator of the denotes targets in Gnomon is still a task. Therefore, the new versions replace the first ones without a migration of a consumer.
 
 ## Options weighed
 
