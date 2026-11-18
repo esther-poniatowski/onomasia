@@ -8,6 +8,7 @@ dependencies:
   - black                  # code formatting
   - mypy                   # static type checking
   - mypy_extensions
+  - types-pyyaml           # type stubs of PyYAML, for mypy
   - pylint                 # code linting
   - pyright                # static type analysis
   # Testing
