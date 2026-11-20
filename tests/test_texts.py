@@ -525,7 +525,7 @@ def test_invalid_severity_in_texts_is_rejected(tmp_path: Path) -> None:
 def test_note_issues_carry_a_typed_locus_and_their_matched_form(tmp_path: Path) -> None:
     """A defect in a text names the glossary or the notation of its entry, and the form matched,
     so that the findings log gives it an identity independent of its line."""
-    from elenchos import profile
+    from elenchos.profile import identities, violations
 
     from onomasia.findings import sarif_log
 
@@ -545,4 +545,4 @@ def test_note_issues_carry_a_typed_locus_and_their_matched_form(tmp_path: Path) 
         "unknown-macro": "",
     }
     assert all(issue.discriminator for issue in issues)
-    assert profile.violations(sarif_log(issues)) == []
+    assert violations(sarif_log(issues)) == []

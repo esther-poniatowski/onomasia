@@ -553,7 +553,7 @@ def test_cli_writes_a_findings_log_in_the_profile(tmp_path: Path) -> None:
     command that cannot start writes a failed run."""
     from typer.testing import CliRunner
 
-    from elenchos import profile
+    from elenchos.profile import identities, violations
 
     from onomasia.cli import app
 
@@ -564,8 +564,8 @@ def test_cli_writes_a_findings_log_in_the_profile(tmp_path: Path) -> None:
         arguments = [command, "--root", str(root), "--format", "sarif", "--output", str(output)]
         assert CliRunner().invoke(app, arguments).exit_code == 1
         log = json.loads(output.read_text(encoding="utf-8"))
-        assert profile.violations(log) == []
-        assert "onomasia|invalid-yaml|path:projects/p/glossary.yml" in profile.identities(log)
+        assert violations(log) == []
+        assert "onomasia|invalid-yaml|path:projects/p/glossary.yml" in identities(log)
     stopped = tmp_path / "logs" / "stopped.sarif"
     arguments = [
         "check",
@@ -578,4 +578,4 @@ def test_cli_writes_a_findings_log_in_the_profile(tmp_path: Path) -> None:
     ]
     assert CliRunner().invoke(app, arguments).exit_code == 2
     log = json.loads(stopped.read_text(encoding="utf-8"))
-    assert profile.violations(log) == [] and "results" not in log["runs"][0]
+    assert violations(log) == [] and "results" not in log["runs"][0]

@@ -1,6 +1,6 @@
 # Contract onomasia:macro-table@2: one macro per entry of a composition of notations, each with the
-# normalized logical target of its unit. Onomasia generates it; Gnomon reads the target and the
-# class of each entry from it.
+# normalized logical target of its unit. Onomasia generates it, and a reader takes from it the
+# target and the class of each entry.
 $schema: https://json-schema.org/draft/2020-12/schema
 $id: macro-table.schema.yml
 title: Macro table

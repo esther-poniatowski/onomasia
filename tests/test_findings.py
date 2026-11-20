@@ -1,6 +1,6 @@
 """Tests of the findings log: each issue written as a result that the profile of Elenchos admits."""
 
-from elenchos import profile
+from elenchos.profile import identities, violations
 
 from onomasia.findings import sarif_log
 from onomasia.issues import Issue, Severity, default_severities
@@ -9,7 +9,7 @@ from onomasia.issues import Issue, Severity, default_severities
 def _log(issues: list[Issue]) -> dict:
     """Write the log of `issues`, after checking it against the profile."""
     log = sarif_log(issues)
-    assert profile.violations(log) == []
+    assert violations(log) == []
     return log
 
 
@@ -25,7 +25,7 @@ def test_a_record_issue_is_located_by_its_pointer() -> None:
     assert (
         result["level"] == "warning" and "region" not in result["locations"][0]["physicalLocation"]
     )
-    assert profile.identities(log) == ["onomasia|missing-gloss|path:notation.yml|/entries/lam"]
+    assert identities(log) == ["onomasia|missing-gloss|path:notation.yml|/entries/lam"]
 
 
 def test_a_text_issue_is_located_by_its_typed_locus_and_line() -> None:
@@ -38,7 +38,7 @@ def test_a_text_issue_is_located_by_its_typed_locus_and_line() -> None:
         result["locations"][0]["physicalLocation"]["region"] for result in log["runs"][0]["results"]
     ]
     assert regions == [{"startLine": 3}, {"startLine": 4}]
-    assert profile.identities(log) == [
+    assert identities(log) == [
         "onomasia|forbidden-form|path:note.md|term:base|neuron",
         "onomasia|entry-status|path:note.md|symbol:mix|\\onoW",
     ]
@@ -47,4 +47,4 @@ def test_a_text_issue_is_located_by_its_typed_locus_and_line() -> None:
 def test_a_record_of_another_repository_keeps_its_resource() -> None:
     issue = Issue("schema-violation", Severity.ERROR, "mixture:notation.yml", "/id", "bad")
     log = _log([issue])
-    assert profile.identities(log) == ["onomasia|schema-violation|path:mixture:notation.yml|/id"]
+    assert identities(log) == ["onomasia|schema-violation|path:mixture:notation.yml|/id"]

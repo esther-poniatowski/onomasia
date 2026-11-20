@@ -1,5 +1,5 @@
 # Contract onomasia:term-table@1: the terms of a composed glossary, with their forms, statuses
-# and glosses. Onomasia generates it; Hermeneia reads it.
+# and glosses. Onomasia generates it for the tools that check texts.
 $schema: https://json-schema.org/draft/2020-12/schema
 $id: term-table.schema.yml
 title: Term table
