@@ -27,7 +27,7 @@ dependencies:
     source:
       kind: git
       repository: https://github.com/esther-poniatowski/anagraphe.git
-      commit: f0dd917620e56a2fe0ce0675f8024770b69c9c47
+      commit: 107a80bbae354fa00cd4981369a7ea747857aec2
       archive_roots:
         - packages/read-python/src/anagraphe_read/data/schemas
         - specs/schema-registry.yml

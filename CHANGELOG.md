@@ -82,6 +82,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   imports and the bindings of texts. The identifier of the consumer is the identity that Anagraphe
   derives, from the section `repository` of `anagraphe.yml`, the remote or the folder, instead of
   the retired manifest `repository.yml`. An invalid configuration of Anagraphe now stops every run.
+- **Breaking:** without `texts.anagraphe`, the configuration of Anagraphe is `anagraphe.yml` at the
+  root, in `.config/` or in `config/`, the places of Hodegos that `anagraphe-read` 0.5.0 searches.
+  A file kept in `config/tools/` is no longer read: the repository then opens with the empty
+  configuration, unless `texts.anagraphe` names that file. Two places holding the file stop the run.
 - **Breaking:** Onomasia reads `onomasia:denotes-targets@3` and writes `onomasia:macro-table@2` and
   `onomasia:macro-lookup@2`. A target of the denotes targets may omit `repository`, and then names
   a unit of the consumer: Onomasia normalizes it by the identifier of the consumer. Each unit is
@@ -132,6 +136,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   configuration under the key `_schema`.
 - Hodegos at commit `a151a28`, which searches `config/`, reads no declaration of the project, and
   no longer requires PyYAML. Onomasia declares PyYAML itself.
+- `anagraphe-read` 0.5.0 at commit `107a80b`, whose Kleisis `b098f5e` pins the same Hodegos, and
+  Elenchos at commit `33160b2` for the tests. The configuration of Kleisis reads the schemas of
+  Anagraphe at `107a80b`, unchanged since `f0dd917`, so the schema registry is unchanged.
 
 ### Added
 
