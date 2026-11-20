@@ -50,6 +50,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - The schemas of `onomasia:glossary@1` and `onomasia:notation@1` declare `x-identifier: id`, so
   that Anagraphe reads the identifier of a glossary or a notation from its root key `id`, and a
   logical target can name it. The annotation changes no valid record.
+- `onomasia check` and `onomasia build` take `--format sarif`, which writes the issues as a
+  findings log in the profile of the gate Elenchos, and `--output`, which names its file. A defect
+  in a text takes the typed locus `term:<glossary>` or `symbol:<notation>` and the form matched as
+  its discriminator.
 - The cases `specs/cases/sources.yml` fix the meaning of the common field `sources` for every
   producer of a document of the contracts of Onomasia. The cases cover the values admitted by the
   schema, the location written for a remote, and the value of `dirty` for each state of a

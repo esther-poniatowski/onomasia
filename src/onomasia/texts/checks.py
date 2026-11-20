@@ -87,6 +87,14 @@ class _Notation:
     reported: Mapping[str, tuple[Macro, ...]]
 
 
+def _symbol_locus(notation: _Notation, names: Sequence[str]) -> str:
+    """Return the typed locus of the notation declaring the first macro of `names`."""
+    for macro in notation.table.macros:
+        if macro.name in names:
+            return f"symbol:{macro.notation}"
+    return ""
+
+
 @dataclass(frozen=True)
 class _Context:
     """Glossary and notation entries visible from the bindings of one text."""
@@ -218,6 +226,7 @@ class TextChecker:  # pylint: disable=too-many-instance-attributes
                     bound.resource,
                     bound.pointer,
                     f"no {kind.singular} {bound.value}",
+                    discriminator=bound.value,
                 )
         return composition
 
@@ -327,6 +336,8 @@ class TextChecker:  # pylint: disable=too-many-instance-attributes
                     + (f"; write {advice}" if advice else ""),
                     prose.line(match.start()),
                     role.term_in_texts,
+                    locus=f"term:{visible.record.identifier}",
+                    discriminator=match.group(0),
                 )
         if matching.frames is None:
             return
@@ -341,6 +352,8 @@ class TextChecker:  # pylint: disable=too-many-instance-attributes
                     f"'{excerpt(match.group(0))}' matches none of the frames of {identifier}: "
                     + ", ".join(term.frames),
                     prose.line(start),
+                    locus=f"term:{visible.record.identifier}",
+                    discriminator=match.group(0),
                 )
 
     def _term_label(self, visible: Visible, reference: str | None) -> str | None:
@@ -408,6 +421,8 @@ class TextChecker:  # pylint: disable=too-many-instance-attributes
                 f"({visible.record.resource}); write {advice}; {rule.reason}",
                 prose.line(start),
                 cap,
+                locus=f"term:{visible.record.identifier}",
+                discriminator=match.group(0),
             )
 
     def _rule_cap(self, rule: LexicalRule) -> Severity:
@@ -442,6 +457,7 @@ class TextChecker:  # pylint: disable=too-many-instance-attributes
                         "",
                         f"\\{match.group(1)} is defined by none of the bound notations",
                         line,
+                        discriminator=f"\\{match.group(1)}",
                     )
             if notation.bodies is None:
                 continue
@@ -458,6 +474,8 @@ class TextChecker:  # pylint: disable=too-many-instance-attributes
                     "",
                     f"'{body}' is the printed form of the macro {names}; call it",
                     line,
+                    locus=_symbol_locus(notation, notation.printing[body]),
+                    discriminator=body,
                 )
 
     def _check_entry(
@@ -490,6 +508,8 @@ class TextChecker:  # pylint: disable=too-many-instance-attributes
             f"{self._status(entry.status)}{advice}",
             line,
             role.term_in_texts,
+            locus=f"symbol:{visible.record.identifier}",
+            discriminator=written or f"\\{macro.name}",
         )
 
 

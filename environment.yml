@@ -28,4 +28,6 @@ dependencies:
   - pip:
       - anagraphe @ git+https://github.com/esther-poniatowski/anagraphe.git@d5f7ca15b001b685209da13fc04f1adb2cecfb35
       - merismos @ git+https://github.com/esther-poniatowski/merismos.git@74267731c172676ace9cee9ea224d74d118b1f32
+      # The tests check the findings log with the profile interface of Elenchos.
+      - elenchos @ git+https://github.com/esther-poniatowski/elenchos.git@4141cc82978a8e1ebba23b9c92af71691cffe954
 variables:

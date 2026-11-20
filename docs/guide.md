@@ -42,6 +42,14 @@ The line opens on the resource and the JSON Pointer of the offending value, then
 - 1 when an error is reported;
 - 2 when the configuration is missing, unreadable, outside the root or invalid.
 
+The option `--format sarif` writes the issues as a findings log in the profile of the gate Elenchos. The log goes to the file named by `--output`, or to the standard output:
+
+```console
+onomasia check --root path/to/vault --format sarif --output build/onomasia.sarif
+```
+
+Each issue becomes one result of the log. The rule of the result is the check, and its level is the severity of the issue. Its locus is the JSON Pointer of the offending value in a record. A defect in a text takes a typed locus and a line instead. The typed locus `term:<glossary>` or `symbol:<notation>` names the record that declares the entry used. The form matched in the text separates two defects at one locus. With status 2, the log holds a failed run that states why the command could not run.
+
 ## Checking the texts
 
 A consumer declaring the section `texts` of its configuration checks its texts too, with the same command `onomasia check`. Each text is checked against the glossaries, the notations and the audiences bound to it. Anagraphe resolves these bindings along the directory chain, so a text declares them in its frontmatter, or inherits them from the index of an enclosing folder. The section `bindings` of the Anagraphe configuration names the key of each role:
@@ -78,7 +86,7 @@ To print its symbols, a consumer writes the outputs declared under the key `buil
 onomasia build --root path/to/vault
 ```
 
-The command prints its issues as `onomasia check` does, followed by one line `wrote <path>` per output written. Its exit statuses are those of `onomasia check`. When an error is reported, the build writes no output, so the former outputs stay whole. Otherwise, each output is replaced in one step. A check lowered to `warning` or `off` no longer stops the build: an output that cannot be built is then skipped, and the other outputs are written.
+The command prints its issues as `onomasia check` does, followed by one line `wrote <path>` per output written. Its exit statuses and its option `--format sarif` are those of `onomasia check`. When the findings log goes to the standard output, the lines `wrote <path>` go to the standard error. When an error is reported, the build writes no output, so the former outputs stay whole. Otherwise, each output is replaced in one step. A check lowered to `warning` or `off` no longer stops the build: an output that cannot be built is then skipped, and the other outputs are written.
 
 Every output records the sources of its records, read from the Git repository holding the root. When the root lies outside every Git repository, the list of sources is empty. A document also lists under `inputs` each record of another repository imported into its records, with its commit and its digest.
 

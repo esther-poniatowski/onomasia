@@ -58,7 +58,7 @@ _RANKS = {Severity.OFF: 0, Severity.WARNING: 1, Severity.ERROR: 2}
 
 
 @dataclass(frozen=True)
-class Issue:
+class Issue:  # pylint: disable=too-many-instance-attributes
     """
     Defect found in a record.
 
@@ -76,6 +76,12 @@ class Issue:
         Statement of the defect.
     line : int | None
         Line of the defect in a text, counted from 1; None for an issue of a record.
+    locus : str
+        Typed locus of a defect in a text, `term:<glossary>` or `symbol:<notation>`, naming the
+        record whose entry the text uses; empty for a defect located by its pointer alone.
+    discriminator : str
+        Offending content separating two defects of one check at one locus, such as the form
+        matched in a text; empty when the locus suffices.
     """
 
     check: str
@@ -84,6 +90,8 @@ class Issue:
     pointer: str
     message: str
     line: int | None = None
+    locus: str = ""
+    discriminator: str = ""
 
 
 @dataclass
@@ -108,6 +116,9 @@ class IssueSink:
         message: str,
         line: int | None = None,
         cap: Severity | None = None,
+        *,
+        locus: str = "",
+        discriminator: str = "",
     ) -> None:
         """
         Record an issue under the severity of its check, lowered to `cap` when one is given,
@@ -123,7 +134,9 @@ class IssueSink:
         except KeyError as error:
             raise OnomasiaError(f"check {check!r} is absent from the catalog") from error
         if severity is not Severity.OFF:
-            self.issues.append(Issue(check, severity, resource, pointer, message, line))
+            self.issues.append(
+                Issue(check, severity, resource, pointer, message, line, locus, discriminator)
+            )
 
     def has_errors(self) -> bool:
         """Whether an issue of severity `error` was reported."""

@@ -5,6 +5,7 @@ A clean consumer exercises every feature and reports nothing. Each other test pl
 and expects exactly the issue of its check, so that a missed issue and a false positive both fail.
 """
 
+import json
 from pathlib import Path
 
 import pytest
@@ -545,3 +546,36 @@ def test_cli_exits_with_the_status_of_the_issues(tmp_path: Path) -> None:
     assert result.exit_code == 1 and "invalid-yaml" in result.output
     missing = CliRunner().invoke(app, ["check", "--root", str(tmp_path / "absent")])
     assert missing.exit_code == 2
+
+
+def test_cli_writes_a_findings_log_in_the_profile(tmp_path: Path) -> None:
+    """With `--format sarif`, both commands write a log that the profile of Elenchos admits, and a
+    command that cannot start writes a failed run."""
+    from typer.testing import CliRunner
+
+    from elenchos import profile
+
+    from onomasia.cli import app
+
+    planted = dict(CLEAN, **{"projects/p/glossary.yml": "terms: [unclosed"})
+    root = _consumer(tmp_path, planted)
+    for command in ("check", "build"):
+        output = tmp_path / "logs" / f"{command}.sarif"
+        arguments = [command, "--root", str(root), "--format", "sarif", "--output", str(output)]
+        assert CliRunner().invoke(app, arguments).exit_code == 1
+        log = json.loads(output.read_text(encoding="utf-8"))
+        assert profile.violations(log) == []
+        assert "onomasia|invalid-yaml|path:projects/p/glossary.yml" in profile.identities(log)
+    stopped = tmp_path / "logs" / "stopped.sarif"
+    arguments = [
+        "check",
+        "--root",
+        str(tmp_path / "absent"),
+        "--format",
+        "sarif",
+        "-o",
+        str(stopped),
+    ]
+    assert CliRunner().invoke(app, arguments).exit_code == 2
+    log = json.loads(stopped.read_text(encoding="utf-8"))
+    assert profile.violations(log) == [] and "results" not in log["runs"][0]
