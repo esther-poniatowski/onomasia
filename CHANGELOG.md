@@ -66,9 +66,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   reads `config/kleisis.yml`, and the record `specs/schema-resources.yml` is retired. The
   keywords `x-identifier` and `x-target-contract` come from the registry of Anagraphe.
 - **Breaking:** Hodegos locates the root of a command and the file `onomasia.yml`. The file lies at
-  the root, in its subfolder `.config/`, or in a folder that the `hodegos.yml` of the root
-  declares. `config/tools/onomasia.yml` is read only when `hodegos.yml` lists `config/tools`.
+  the root, in its subfolder `.config/`, or in its subfolder `config/`, as the
+  [specification of Hodegos](https://github.com/esther-poniatowski/hodegos/blob/main/docs/specification.md)
+  states. A file in another folder, such as `config/tools/onomasia.yml`, is named by `--config`.
   `discover_configuration` replaces `find_root` and `locate_configuration`.
+- **Breaking:** Onomasia no longer searches a folder declared by a file `hodegos.yml`, since Hodegos
+  removed that declaration. A consumer that declared `config/tools/` moves `onomasia.yml` to
+  `config/`, `.config/` or the root, or names it with `--config`. The subfolder `config/` is now
+  searched after `.config/`, so a file there competes with a file at another place. The message of a
+  missing configuration names the root, `.config/`, `config/` and `--config`. The repository moves
+  its configuration of Kleisis to `config/kleisis.yml` and removes its `hodegos.yml`.
 - **Breaking:** Onomasia reads Anagraphe only through the interface of its read package
   `anagraphe-read`, which replaces the distribution `anagraphe` as a dependency. Each run opens the
   repository of the consumer with `open_repository`, which resolves and reads the sources of
@@ -123,6 +130,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Merismos at commit `feb6654`, which reads Markdown as observed in Obsidian 1.15.0, and Anagraphe
   at commit `97a5850`, after its release `v0.3.1`, which pins the same Merismos and reads its
   configuration under the key `_schema`.
+- Hodegos at commit `a151a28`, which searches `config/`, reads no declaration of the project, and
+  no longer requires PyYAML. Onomasia declares PyYAML itself.
 
 ### Added
 
@@ -130,11 +139,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - A form may be written as an object, `{literal: …}` or `{regex: …}`, with a `description`.
 - A replacement may state its `condition`, printed in the advice of `forbidden-form`.
 - Each character of a masked region reads as U+0000, which an expression may name.
-- Without `--config`, `check` and `build` read `config/tools/onomasia.yml` or `onomasia.yml`
-  below the root. When both files exist, the command stops with status 2 and names both; when
-  neither exists, the message names both places. A given `--config` is read from the current
-  folder, as before, and an absent file is an error.
+- Without `--config`, `check` and `build` read `onomasia.yml` at one place of the root: the root,
+  its subfolder `.config/` or its subfolder `config/`. When two places hold the file, the command
+  stops with status 2 and names both; when none holds it, the message names the places. A given
+  `--config` is read from the current folder, as before, and an absent file is an error.
 - Without `--root`, the root is read from the new environment variable `ONOMASIA_ROOT`, and
-  otherwise is the nearest folder, from the current one upwards, holding one of both files, and
-  otherwise the current folder, formerly always the current folder.
+  otherwise is the nearest folder, from the current one upwards, holding the file at one of its
+  places, and otherwise the current folder, formerly always the current folder.
 - The short options `-r` for `--root` and `-c` for `--config`.

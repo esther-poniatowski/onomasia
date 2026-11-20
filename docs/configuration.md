@@ -7,7 +7,7 @@ aliases:
 ---
 # Configuration
 
-Each consumer holds its configuration in the file `onomasia.yml`, at one of the places that [Hodegos](https://github.com/esther-poniatowski/hodegos/blob/main/docs/specification.md) searches: its root, the subfolder `.config/`, or a folder that the `hodegos.yml` of the root declares, such as `config/tools/`. Without the option `--config`, Onomasia reads the one place that holds the file, and stops with an error naming both when two places hold one. The configuration holds every value needed by Onomasia from the consumer, and its seven sections answer seven questions:
+Each consumer holds its configuration in the file `onomasia.yml`, at one of the places that [Hodegos](https://github.com/esther-poniatowski/hodegos/blob/main/docs/specification.md) searches: its root, the subfolder `.config/`, or the subfolder `config/`. A file kept in another folder, such as `config/tools/`, is named by the option `--config`. Without that option, Onomasia reads the one place that holds the file, and stops with an error naming both when two places hold one. The configuration holds every value needed by Onomasia from the consumer, and its seven sections answer seven questions:
 
 - where the records of the consumer live;
 - which value sets the records use;

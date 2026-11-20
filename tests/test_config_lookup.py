@@ -3,9 +3,8 @@ Tests of the resolution of the root of a consumer and of its configuration file.
 
 Hodegos locates both. The root is the folder given by `--root`, else by `ONOMASIA_ROOT`, else the
 nearest folder, from the current one upwards, holding `onomasia.yml` at one of its places, else the
-current folder. The places are the root, its `.config/`, and the folders that its `hodegos.yml`
-declares; two places holding a file is an error. A named `--config` is read from the current
-folder.
+current folder. The places are the root, its `.config/` and its `config/`; two places holding a
+file is an error. A named `--config` is read from the current folder.
 """
 
 from pathlib import Path
@@ -21,9 +20,8 @@ VALID = "_schema: onomasia:configuration@1\n"
 """Configuration that `onomasia check` reads with no error."""
 INVALID = "_schema: onomasia:configuration@99\n"
 """Configuration that `onomasia check` rejects, with exit status 2."""
-NESTED = Path("shared/onomasia.yml")
-DECLARATION = "_schema: hodegos:configuration@1\nfolders:\n  - shared\n"
-"""Declaration of a consumer keeping its configuration in `shared/`."""
+NESTED = Path("config/onomasia.yml")
+"""Configuration in the subfolder `config/`, a place of the root."""
 
 
 def _consumer(root: Path, files: dict[Path | str, str]) -> Path:
@@ -38,14 +36,15 @@ def _check(*arguments: str, env: dict[str, str] | None = None) -> int:
     return CliRunner().invoke(app, ["check", *arguments], env=env).exit_code
 
 
-def test_lookup_reads_a_folder_that_the_root_declares(tmp_path: Path) -> None:
-    root = _consumer(tmp_path, {NESTED: VALID, "hodegos.yml": DECLARATION})
+def test_lookup_reads_the_config_folder(tmp_path: Path) -> None:
+    root = _consumer(tmp_path, {NESTED: VALID})
     assert discover_configuration(root)[1] == root / NESTED
     assert _check("--root", str(root)) == 0
 
 
-def test_lookup_ignores_an_undeclared_folder(tmp_path: Path) -> None:
-    root = _consumer(tmp_path, {NESTED: VALID})
+@pytest.mark.parametrize("folder", ["shared", "config/tools"])
+def test_lookup_ignores_a_folder_that_no_rule_admits(tmp_path: Path, folder: str) -> None:
+    root = _consumer(tmp_path, {f"{folder}/onomasia.yml": VALID})
     with pytest.raises(ConfigurationError, match="no configuration"):
         discover_configuration(root)
 
@@ -59,7 +58,7 @@ def test_lookup_reads_the_file_at_the_root_and_in_dot_config(tmp_path: Path) -> 
 
 
 def test_two_configuration_files_are_an_error_naming_both(tmp_path: Path) -> None:
-    root = _consumer(tmp_path, {NESTED: VALID, "onomasia.yml": VALID, "hodegos.yml": DECLARATION})
+    root = _consumer(tmp_path, {NESTED: VALID, "onomasia.yml": VALID})
     with pytest.raises(ConfigurationError):
         discover_configuration(root)
     result = CliRunner().invoke(app, ["build", "--root", str(root)])
@@ -87,7 +86,7 @@ def test_named_absent_config_is_an_error(tmp_path: Path) -> None:
 
 
 def test_missing_configuration_names_the_places(tmp_path: Path) -> None:
-    with pytest.raises(ConfigurationError, match="hodegos.yml declares"):
+    with pytest.raises(ConfigurationError, match="in .config/ or in config/"):
         discover_configuration(tmp_path)
     result = CliRunner().invoke(app, ["build", "--root", str(tmp_path)])
     assert result.exit_code == 2

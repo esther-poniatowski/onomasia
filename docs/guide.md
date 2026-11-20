@@ -17,15 +17,9 @@ A consumer of Onomasia checks its glossaries and notations, then builds the macr
 Both commands of Onomasia read one consumer, located by two options:
 
 - the option `-r`, `--root` names the root of the consumer. Without it, the root is the folder named by the environment variable `ONOMASIA_ROOT`, else the nearest folder, from the current one upwards, holding `onomasia.yml` at one of its places, else the current folder;
-- the option `-c`, `--config` names the configuration file. Without it, Onomasia reads `onomasia.yml` at the one place of the root that holds it: the root itself, its subfolder `.config/`, or a folder that its `hodegos.yml` declares. Two places holding the file stop the command with an error naming both.
+- the option `-c`, `--config` names the configuration file. Without it, Onomasia reads `onomasia.yml` at the one place of the root that holds it: the root itself, its subfolder `.config/`, or its subfolder `config/`. Two places holding the file stop the command with an error naming both.
 
-Hodegos resolves the root and the places, as its [specification](https://github.com/esther-poniatowski/hodegos/blob/main/docs/specification.md) states. A consumer keeping its configuration in `config/tools/` declares that folder in `hodegos.yml`:
-
-```yaml
-_schema: hodegos:configuration@1
-folders:
-  - config/tools
-```
+Hodegos resolves the root and the places, as its [specification](https://github.com/esther-poniatowski/hodegos/blob/main/docs/specification.md) states. A configuration kept in another folder, such as `config/tools/`, is not searched, so the consumer names it with `--config` at each invocation.
 
 A path passed to `--config` resolves against the current folder, the file must exist, and it must lie inside the root. A path written in the configuration resolves against the root.
 

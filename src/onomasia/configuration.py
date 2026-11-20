@@ -2,13 +2,14 @@
 Configuration of a consumer, `onomasia.yml`: where its records live, its vocabularies, and the
 severity of each check.
 
-Hodegos locates the file and the root of a command, as its specification states. The file lies at
-`onomasia.yml` below the root, in its subfolder `.config/`, or in a folder that the `hodegos.yml`
-of the root declares, and two places holding a file is an error, unless another file is named. The
-root of a command is the folder given by `--root`, else by the variable `ONOMASIA_ROOT`, else the
-nearest folder, from the current one upwards, that holds the file at one of its places, else the
-current folder. The file names its
-format under `_schema`, then declares seven sections, each optional:
+Hodegos locates the file and the root of a command, as its specification states
+(https://github.com/esther-poniatowski/hodegos/blob/main/docs/specification.md). The file lies at
+`onomasia.yml` below the root, in its subfolder `.config/`, or in its subfolder `config/`, and two
+places holding a file is an error, unless another file is named. A file in another folder is named
+by `--config`. The root of a command is the folder given by `--root`, else by the variable
+`ONOMASIA_ROOT`, else the nearest folder, from the current one upwards, that holds the file at one
+of its places, else the current folder. The file names its format under `_schema`, then declares
+seven sections, each optional:
 
 - `records`, the globs of the records of each format, relative to the root, and the paths
   excluded from every glob;
@@ -549,8 +550,8 @@ def discover_configuration(
     Raises
     ------
     ConfigurationError
-        If Hodegos rejects the request, the named file, or a declaration `hodegos.yml`, if two
-        places of the root hold a file, or if no place holds one.
+        If Hodegos rejects the request or the named file, if two places of the root hold a file,
+        or if no place holds one.
     """
     try:
         found = discover(TOOL, root=root, config=config)
@@ -559,8 +560,8 @@ def discover_configuration(
     resolved = found.root.resolve()
     if found.configuration is None:
         raise ConfigurationError(
-            f"{resolved}: no configuration: write {CONFIGURATION_FILE} at the root, in .config/, "
-            "or in a folder that hodegos.yml declares, or name it with --config"
+            f"{resolved}: no configuration: write {CONFIGURATION_FILE} at the root, "
+            "in .config/ or in config/, or name it with --config"
         )
     return resolved, found.configuration.path.absolute()
 

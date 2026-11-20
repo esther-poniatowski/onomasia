@@ -41,7 +41,7 @@ ROOT_HELP = (
 )
 CONFIG_HELP = (
     "Configuration file, relative to the current folder; by default onomasia.yml at the root, in "
-    ".config/, or in a folder that hodegos.yml declares."
+    ".config/, or in config/."
 )
 FORMAT_HELP = "Report format: `text`, or `sarif` for a findings log in the profile of Elenchos."
 OUTPUT_HELP = "File of the report; standard output by default."
