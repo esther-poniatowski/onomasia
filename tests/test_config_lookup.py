@@ -1,10 +1,11 @@
 """
 Tests of the resolution of the root of a consumer and of its configuration file.
 
-The root is the folder given by `--root`, else by `ONOMASIA_ROOT`, else the nearest folder, from
-the current one upwards, holding `config/tools/onomasia.yml` or `onomasia.yml`, else the current
-folder. Without `--config`, a command reads the one of both files that exists below the root, and
-both existing is an error. A named `--config` is read from the current folder.
+Hodegos locates both. The root is the folder given by `--root`, else by `ONOMASIA_ROOT`, else the
+nearest folder, from the current one upwards, holding `onomasia.yml` at one of its places, else the
+current folder. The places are the root, its `.config/`, and the folders that its `hodegos.yml`
+declares; two places holding a file is an error. A named `--config` is read from the current
+folder.
 """
 
 from pathlib import Path
@@ -13,14 +14,16 @@ import pytest
 from typer.testing import CliRunner
 
 from onomasia.cli import app
-from onomasia.configuration import find_root, locate_configuration
+from onomasia.configuration import discover_configuration
 from onomasia.errors import ConfigurationError
 
 VALID = "_schema: onomasia:configuration@1\n"
 """Configuration that `onomasia check` reads with no error."""
 INVALID = "_schema: onomasia:configuration@99\n"
 """Configuration that `onomasia check` rejects, with exit status 2."""
-NESTED = Path("config/tools/onomasia.yml")
+NESTED = Path("shared/onomasia.yml")
+DECLARATION = "_schema: hodegos:configuration@1\nfolders:\n  - shared\n"
+"""Declaration of a consumer keeping its configuration in `shared/`."""
 
 
 def _consumer(root: Path, files: dict[Path | str, str]) -> Path:
@@ -35,22 +38,30 @@ def _check(*arguments: str, env: dict[str, str] | None = None) -> int:
     return CliRunner().invoke(app, ["check", *arguments], env=env).exit_code
 
 
-def test_lookup_reads_the_file_of_config_tools(tmp_path: Path) -> None:
-    root = _consumer(tmp_path, {NESTED: VALID})
-    assert locate_configuration(root) == root / NESTED
+def test_lookup_reads_a_folder_that_the_root_declares(tmp_path: Path) -> None:
+    root = _consumer(tmp_path, {NESTED: VALID, "hodegos.yml": DECLARATION})
+    assert discover_configuration(root)[1] == root / NESTED
     assert _check("--root", str(root)) == 0
 
 
-def test_lookup_reads_the_file_at_the_root(tmp_path: Path) -> None:
-    root = _consumer(tmp_path, {"onomasia.yml": INVALID})
-    assert locate_configuration(root) == root / "onomasia.yml"
+def test_lookup_ignores_an_undeclared_folder(tmp_path: Path) -> None:
+    root = _consumer(tmp_path, {NESTED: VALID})
+    with pytest.raises(ConfigurationError, match="no configuration"):
+        discover_configuration(root)
+
+
+def test_lookup_reads_the_file_at_the_root_and_in_dot_config(tmp_path: Path) -> None:
+    root = _consumer(tmp_path / "a", {"onomasia.yml": INVALID})
+    assert discover_configuration(root)[1] == root / "onomasia.yml"
     assert _check("--root", str(root)) == 2
+    other = _consumer(tmp_path / "b", {".config/onomasia.yml": VALID})
+    assert discover_configuration(other)[1] == other / ".config/onomasia.yml"
 
 
 def test_two_configuration_files_are_an_error_naming_both(tmp_path: Path) -> None:
-    root = _consumer(tmp_path, {NESTED: VALID, "onomasia.yml": VALID})
-    with pytest.raises(ConfigurationError, match="two configuration files"):
-        locate_configuration(root)
+    root = _consumer(tmp_path, {NESTED: VALID, "onomasia.yml": VALID, "hodegos.yml": DECLARATION})
+    with pytest.raises(ConfigurationError):
+        discover_configuration(root)
     result = CliRunner().invoke(app, ["build", "--root", str(root)])
     assert result.exit_code == 2
     assert str(root / NESTED) in result.output
@@ -62,34 +73,33 @@ def test_named_config_is_read_from_the_current_folder(
 ) -> None:
     root = _consumer(tmp_path / "consumer", {NESTED: INVALID, "settings/other.yml": VALID})
     monkeypatch.chdir(root / "settings")
-    assert locate_configuration(root, Path("other.yml")) == root / "settings/other.yml"
+    assert discover_configuration(root, Path("other.yml"))[1] == root / "settings/other.yml"
     assert _check("-r", str(root), "-c", "other.yml") == 0
     monkeypatch.chdir(tmp_path)
     assert _check("-r", str(root), "-c", "other.yml") == 2
 
 
 def test_named_absent_config_is_an_error(tmp_path: Path) -> None:
-    root = _consumer(tmp_path, {NESTED: VALID})
-    with pytest.raises(ConfigurationError, match="no configuration file"):
-        locate_configuration(root, root / "absent.yml")
+    root = _consumer(tmp_path, {"onomasia.yml": VALID})
+    with pytest.raises(ConfigurationError):
+        discover_configuration(root, root / "absent.yml")
     assert _check("--root", str(root), "--config", str(root / "absent.yml")) == 2
 
 
-def test_missing_configuration_names_both_places(tmp_path: Path) -> None:
-    with pytest.raises(ConfigurationError, match="config/tools/onomasia.yml or onomasia.yml"):
-        locate_configuration(tmp_path)
+def test_missing_configuration_names_the_places(tmp_path: Path) -> None:
+    with pytest.raises(ConfigurationError, match="hodegos.yml declares"):
+        discover_configuration(tmp_path)
     result = CliRunner().invoke(app, ["build", "--root", str(tmp_path)])
     assert result.exit_code == 2
-    assert "no configuration at config/tools/onomasia.yml or onomasia.yml" in result.output
+    assert "no configuration: write onomasia.yml at the root" in result.output
 
 
 def test_root_is_found_upwards_from_the_current_folder(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    root = _consumer(tmp_path / "consumer", {NESTED: INVALID, "notes/deep/a.md": "# A\n"})
-    assert find_root(root / "notes/deep") == root.resolve()
-    assert find_root(tmp_path) == tmp_path.resolve()
+    root = _consumer(tmp_path / "consumer", {"onomasia.yml": INVALID, "notes/deep/a.md": "# A\n"})
     monkeypatch.chdir(root / "notes/deep")
+    assert discover_configuration()[0] == root.resolve()
     result = CliRunner().invoke(app, ["check"])
     assert result.exit_code == 2
     assert "_schema" in result.output

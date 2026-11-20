@@ -35,7 +35,7 @@ Pre-alpha. The package checks glossaries, notations and overlays, and builds six
 
 ## Quick Start
 
-Saved as `onomasia.yml` in `config/tools/` below the root of a consumer, or at that root, the following configuration reads the notations of the consumer and writes a LaTeX package for its notation `mixture`:
+Saved as `onomasia.yml` at the root of a consumer, or in a folder that its `hodegos.yml` declares, the following configuration reads the notations of the consumer and writes a LaTeX package for its notation `mixture`:
 
 ```yaml
 _schema: onomasia:configuration@1

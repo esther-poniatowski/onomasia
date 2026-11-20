@@ -27,6 +27,7 @@ dependencies:
   - pip
   - pip:
       - anagraphe-read @ git+https://github.com/esther-poniatowski/anagraphe.git@cb0ffc685d0ccc58b67ddb8f08936d750de5f7f2#subdirectory=packages/read-python
+      - hodegos @ git+https://github.com/esther-poniatowski/hodegos.git@e61d0d97eaa80cc0cfdd90c3022c1e3916ef1ad9
       - merismos @ git+https://github.com/esther-poniatowski/merismos.git@74267731c172676ace9cee9ea224d74d118b1f32
       # The tests check the findings log with the profile interface of Elenchos.
       - elenchos @ git+https://github.com/esther-poniatowski/elenchos.git@4141cc82978a8e1ebba23b9c92af71691cffe954

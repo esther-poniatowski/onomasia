@@ -61,6 +61,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **Breaking:** Hodegos locates the root of a command and the file `onomasia.yml`. The file lies at
+  the root, in its subfolder `.config/`, or in a folder that the `hodegos.yml` of the root
+  declares. `config/tools/onomasia.yml` is read only when `hodegos.yml` lists `config/tools`.
+  `discover_configuration` replaces `find_root` and `locate_configuration`.
 - **Breaking:** Onomasia reads Anagraphe only through the interface of its read package
   `anagraphe-read`, which replaces the distribution `anagraphe` as a dependency. Each run opens the
   repository of the consumer with `open_repository`, which resolves and reads the sources of

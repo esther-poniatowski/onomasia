@@ -38,6 +38,7 @@ requires-python = ">=3.12"
 
 dependencies = [
     "anagraphe-read>=0.3,<1",
+    "hodegos<1",
     "jsonschema",
     "merismos>=0.1,<1",
     "pyyaml",

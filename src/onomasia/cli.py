@@ -27,13 +27,7 @@ from pathlib import Path
 import typer
 
 from . import info, __version__
-from .configuration import (
-    ROOT_VARIABLE,
-    Configuration,
-    find_root,
-    load_configuration,
-    locate_configuration,
-)
+from .configuration import Configuration, discover_configuration, load_configuration
 from .errors import OnomasiaError
 from .findings import sarif_log
 from .issues import Issue, Severity
@@ -42,12 +36,12 @@ from .service import build_outputs, check_records, default_provider
 app = typer.Typer(add_completion=False, no_args_is_help=True)
 
 ROOT_HELP = (
-    "Root of the consumer; by default the nearest folder, from the current one upwards, holding "
-    "config/tools/onomasia.yml or onomasia.yml, else the current folder."
+    "Root of the consumer; by default the folder of ONOMASIA_ROOT, else the nearest folder, from "
+    "the current one upwards, holding a configuration, else the current folder."
 )
 CONFIG_HELP = (
-    "Configuration file, relative to the current folder; by default config/tools/onomasia.yml or "
-    "onomasia.yml below the root."
+    "Configuration file, relative to the current folder; by default onomasia.yml at the root, in "
+    ".config/, or in a folder that hodegos.yml declares."
 )
 FORMAT_HELP = "Report format: `text`, or `sarif` for a findings log in the profile of Elenchos."
 OUTPUT_HELP = "File of the report; standard output by default."
@@ -89,8 +83,8 @@ def _checked_format(output_format: str) -> None:
 
 def _configuration(root: Path | None, config: Path | None) -> Configuration:
     """Configuration of the consumer at the root given or found, from the file named or found."""
-    resolved = root.resolve() if root is not None else find_root(Path.cwd())
-    return load_configuration(resolved, locate_configuration(resolved, config))
+    resolved, path = discover_configuration(root, config)
+    return load_configuration(resolved, path)
 
 
 @app.command("info")
@@ -101,9 +95,7 @@ def cli_info() -> None:
 
 @app.command("check")
 def cli_check(
-    root: Path | None = typer.Option(
-        None, "--root", "-r", envvar=ROOT_VARIABLE, show_envvar=True, help=ROOT_HELP
-    ),
+    root: Path | None = typer.Option(None, "--root", "-r", help=ROOT_HELP),
     config: Path | None = typer.Option(None, "--config", "-c", help=CONFIG_HELP),
     output_format: str = typer.Option("text", "--format", help=FORMAT_HELP),
     output: Path | None = typer.Option(None, "--output", "-o", help=OUTPUT_HELP),
@@ -123,9 +115,7 @@ def cli_check(
 
 @app.command("build")
 def cli_build(
-    root: Path | None = typer.Option(
-        None, "--root", "-r", envvar=ROOT_VARIABLE, show_envvar=True, help=ROOT_HELP
-    ),
+    root: Path | None = typer.Option(None, "--root", "-r", help=ROOT_HELP),
     config: Path | None = typer.Option(None, "--config", "-c", help=CONFIG_HELP),
     output_format: str = typer.Option("text", "--format", help=FORMAT_HELP),
     output: Path | None = typer.Option(None, "--output", "-o", help=OUTPUT_HELP),
