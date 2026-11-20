@@ -145,12 +145,27 @@ $defs:
       gloss: {$ref: '#/$defs/text'}
   sources:
     type: array
-    description: Repositories of the records behind a generated document, each with its commit.
+    description: >-
+      Repository holding the files read to generate a document, at the commit checked out; empty
+      when the producer runs in no Git repository. The cases of specs/cases/sources.yml fix the
+      meaning of each field.
     items:
       type: object
       additionalProperties: false
       required: [repository, commit, dirty]
       properties:
-        repository: {type: string, minLength: 1}
-        commit: {type: string, pattern: '^[0-9a-f]{40}$'}
-        dirty: {type: boolean}
+        repository:
+          description: Location of the repository, without the user information of its remote.
+          type: string
+          minLength: 1
+        commit:
+          description: Full identifier of the commit checked out.
+          type: string
+          pattern: '^[0-9a-f]{40}$'
+        dirty:
+          description: >-
+            True when the commit does not hold one of the files read to generate the document:
+            the file differs from its committed state, is untracked or ignored, or lies outside
+            the repository. A change to any other file, the document itself included, leaves it
+            false.
+          type: boolean

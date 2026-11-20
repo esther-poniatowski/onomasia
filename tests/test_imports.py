@@ -10,6 +10,7 @@ planted defect expects the issue of its check at the key `from` of the import th
 """
 
 from collections import Counter
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 import hashlib
 from importlib import resources
@@ -55,9 +56,9 @@ TERMS = {"product": "term-table", "glossary": "project", "path": "out/terms.yml"
 class FixedProvenance:  # pylint: disable=too-few-public-methods
     """Provenance of a test consumer, read from no repository."""
 
-    def sources(self, root: Path) -> tuple[Source, ...]:
+    def sources(self, root: Path, files: Sequence[Path]) -> tuple[Source, ...]:
         """Return the fixed source."""
-        del root
+        del root, files
         return (SOURCE,)
 
 

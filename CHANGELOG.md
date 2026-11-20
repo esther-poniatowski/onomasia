@@ -50,6 +50,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - The schemas of `onomasia:glossary@1` and `onomasia:notation@1` declare `x-identifier: id`, so
   that Anagraphe reads the identifier of a glossary or a notation from its root key `id`, and a
   logical target can name it. The annotation changes no valid record.
+- The cases `specs/cases/sources.yml` fix the meaning of the common field `sources` for every
+  producer of a document of the contracts of Onomasia. The cases cover the values admitted by the
+  schema, the location written for a remote, and the value of `dirty` for each state of a
+  repository.
 
 ### Changed
 
@@ -73,6 +77,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - The new check `invalid-item` reports an item of an input document breaking its schema, or naming
   a slot outside its unit. Onomasia skips that item and keeps the other items. The check
   `invalid-contract` now covers the header of a document only.
+- **Breaking:** `dirty` in `sources` is true when the commit does not hold one of the files read
+  to generate the document, and no longer when any file of the working tree changed. The method
+  `sources` of a provenance receives the files read beside the root.
 - The schemas of `onomasia:glossary@1` and `onomasia:notation@1` move to `glossary.v1.schema.yml`
   and `notation.v1.schema.yml`; Onomasia still reads both versions.
 - The schema of `onomasia:overlay@1` moves to `overlay.v1.schema.yml`.

@@ -19,13 +19,13 @@ The contracts of Onomasia fix the documents exchanged between Onomasia and the o
 
 ## Common fields
 
-Every document names its contract under `_schema`, as each [record](formats.md) names its format. Therefore, a registry of schemas can select the contract of a document. Every document also names the records behind it under `sources`. Each item of `sources` describes one repository by three fields:
+Every document names its contract under `_schema`, as each [record](formats.md) names its format. Therefore, a registry of schemas can select the contract of a document. Every document also lists its sources under `sources`. A source is the repository holding the files read to generate the document. Each item of `sources` describes one repository by three fields:
 
 - `repository`, the location of the repository, without the user information that a remote URL may hold;
-- `commit`, the full identifier of its commit;
-- `dirty`, true when its working tree held uncommitted changes.
+- `commit`, the full identifier of the commit checked out;
+- `dirty`, true when that commit lacks a file read.
 
-With these fields, a build records the commit of the notation used. When the root of the consumer lies in no Git repository, `sources` is empty. Onomasia validates an input document in two parts. The check `invalid-contract` reports a header breaking the schema or naming another contract, and Onomasia skips the whole document. The check `invalid-item` reports an item breaking the schema, at that item, and Onomasia skips the item only. ^common-fields
+The commit lacks a file read in three cases: the file differs from its committed state, is untracked or ignored, or lies outside the repository. A change to any other file leaves `dirty` false, even a change to the document itself. Therefore, when `dirty` is false, the document depends only on its commit and on its `inputs`. A build of Onomasia reads three kinds of file: its configuration, the records of the consumer and the denotes targets. When the root of the consumer lies in no Git repository, `sources` is empty. The published [cases of `sources`](../specs/cases/sources.yml) apply to every producer of a document of these contracts. Onomasia validates an input document in two parts. The check `invalid-contract` reports a header breaking the schema or naming another contract, and Onomasia skips the whole document. The check `invalid-item` reports an item breaking the schema, at that item, and Onomasia skips the item only. ^common-fields
 
 A document written by Onomasia also lists under `inputs` each record of another repository [imported](formats.md#^across) by its records. Each item of `inputs` describes one record by four fields:
 

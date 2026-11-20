@@ -26,6 +26,7 @@ build_outputs(configuration, source, provenance, provider) -> BuildResult
     Check the records of a consumer, then write its declared outputs.
 """
 
+from collections.abc import Iterator
 from dataclasses import dataclass
 import os
 from pathlib import Path
@@ -51,7 +52,13 @@ from .issues import Issue, IssueSink
 from .provenance import GitProvenance, ProvenanceProvider, Source
 from .records.model import RecordKind
 from .records.validation import SchemaValidator
-from .repository import FileRecordSource, RecordSource, load_records, matched_files
+from .repository import (
+    FileRecordSource,
+    RawDocument,
+    RecordSource,
+    load_records,
+    matched_files,
+)
 from .texts.bindings import AnagrapheBindings, BindingSource
 from .texts.checks import TextChecker
 from .typography.serializers import serializer
@@ -85,6 +92,20 @@ def default_provider() -> StateProvider:
     """Return the Git provider of Anagraphe, reading the clones of the machine, then its cache,
     which the variable `ANAGRAPHE_CACHE` may name."""
     return GitProvider(default_cache())
+
+
+class _RecordingSource:
+    """Source passing on the documents of another source, and keeping the resource of each."""
+
+    def __init__(self, source: RecordSource) -> None:
+        self._source = source
+        self.resources: list[str] = []
+
+    def documents(self) -> Iterator[RawDocument]:
+        """Yield the documents of the wrapped source, keeping the resource of each."""
+        for document in self._source.documents():
+            self.resources.append(document.resource)
+            yield document
 
 
 def _checked(
@@ -173,7 +194,7 @@ def check_records(
         If the configuration of Anagraphe or the resolution context of the root is invalid.
     """
     sink = IssueSink(configuration.severities)
-    composer, signatures, _ = _assemble(configuration, source, (), sink, provider)
+    composer, signatures, _ = _assemble(configuration, source, None, sink, provider)
     if configuration.texts is not None:
         _check_texts(configuration, composer, signatures, bindings, sink)
     return _sorted(sink)
@@ -315,14 +336,20 @@ def _write(path: Path, text: str) -> None:
 def _assemble(
     configuration: Configuration,
     source: RecordSource | None,
-    sources: tuple[Source, ...],
+    provenance: ProvenanceProvider | None,
     sink: IssueSink,
     provider: StateProvider | None,
 ) -> tuple[Composer, dict[Target, TargetSignature], list[tuple[Path, str | None]]]:
     """Check the records, read the inputs, and compute the text of each output, writing nothing;
-    return the composer and the signatures, for the checks of texts."""
+    return the composer and the signatures, for the checks of texts.
+
+    The sources of the outputs come from `provenance`, over every file read: the configuration,
+    the records of the consumer and the denotes targets. A check passes no provenance, and its
+    outputs name no source."""
     validator = SchemaValidator()
-    composer = _checked(configuration, source, sink, validator, provider)
+    root = configuration.root
+    recording = _RecordingSource(source or FileRecordSource(root, configuration.records))
+    composer = _checked(configuration, recording, sink, validator, provider)
     signatures = read_signatures(
         configuration.build.denotes_targets,
         configuration.root,
@@ -330,6 +357,12 @@ def _assemble(
         sink,
         repository=consumer_repository(configuration.root),
     )
+    files = [
+        root / configuration.resource,
+        *(root / resource for resource in recording.resources),
+        *configuration.build.denotes_targets,
+    ]
+    sources = provenance.sources(root, files) if provenance is not None else ()
     builder = _Builder(configuration, composer, signatures, sources, sink)
     contents = [
         (output.path, builder.content(index, output))
@@ -369,8 +402,7 @@ def build_outputs(
         If the configuration of Anagraphe or the resolution context of the root is invalid.
     """
     sink = IssueSink(configuration.severities)
-    sources = (provenance or GitProvenance()).sources(configuration.root)
-    _, _, contents = _assemble(configuration, source, sources, sink, provider)
+    _, _, contents = _assemble(configuration, source, provenance or GitProvenance(), sink, provider)
     if sink.has_errors():
         return BuildResult(_sorted(sink), ())
     written: list[Path] = []

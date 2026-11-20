@@ -1,0 +1,119 @@
+# Conformance cases of the common field `sources` of the contracts of Onomasia.
+#
+# The field names the repository holding the files read to generate a document, at the commit
+# checked out. Any producer of a document of these contracts writes the field, so these cases fix
+# its meaning for every producer. Three kinds of case follow:
+#
+# - a `value` case gives a value of `sources`, and whether the definition `sources` of
+#   `common.schema.yml` admits it;
+# - a `remote` case gives the remote of a repository, null for none, and the `repository` written;
+#   `{root}` stands for the root of the consumer;
+# - a `state` case gives the state of a repository and the files read, and the `dirty` written.
+#
+# A state lists the files of the commit under `committed`, then the changes made after it:
+# `modified` and `staged` change committed files, `untracked` and `ignored` add files, and
+# `outside` adds files beside the repository. Every path of `read` is relative to the root of the
+# repository, and a path opening on `../` lies outside it.
+
+_schema: onomasia:cases@1
+
+cases:
+  # --- Values ------------------------------------------------------------------------------------
+
+  - name: one-repository
+    value:
+      - {repository: 'github.com:org/repo.git', commit: 0123456789abcdef0123456789abcdef01234567, dirty: false}
+    expect: {valid: true}
+
+  - name: no-repository
+    value: []
+    expect: {valid: true}
+
+  - name: abbreviated-commit
+    value:
+      - {repository: 'github.com:org/repo.git', commit: 0123456, dirty: false}
+    expect: {valid: false}
+
+  - name: missing-dirty
+    value:
+      - {repository: 'github.com:org/repo.git', commit: 0123456789abcdef0123456789abcdef01234567}
+    expect: {valid: false}
+
+  - name: unknown-field
+    value:
+      - repository: 'github.com:org/repo.git'
+        commit: 0123456789abcdef0123456789abcdef01234567
+        dirty: false
+        branch: main
+    expect: {valid: false}
+
+  # --- Remotes -----------------------------------------------------------------------------------
+
+  - name: remote-with-token
+    remote: 'https://user:token@github.com/org/repo.git'
+    expect: {repository: 'https://github.com/org/repo.git'}
+
+  - name: remote-in-scp-form
+    remote: 'git@github.com:org/repo.git'
+    expect: {repository: 'github.com:org/repo.git'}
+
+  - name: no-remote
+    remote: null
+    expect: {repository: '{root}'}
+
+  # --- States ------------------------------------------------------------------------------------
+
+  - name: files-read-committed
+    state:
+      committed: [onomasia.yml, glossary.yml]
+    read: [onomasia.yml, glossary.yml]
+    expect: {dirty: false}
+
+  - name: other-file-modified
+    state:
+      committed: [onomasia.yml, glossary.yml, notes.md]
+      modified: [notes.md]
+    read: [onomasia.yml, glossary.yml]
+    expect: {dirty: false}
+
+  - name: other-file-untracked
+    state:
+      committed: [onomasia.yml, glossary.yml]
+      untracked: [terms.yml]
+    read: [onomasia.yml, glossary.yml]
+    expect: {dirty: false}
+
+  - name: file-read-modified
+    state:
+      committed: [onomasia.yml, glossary.yml]
+      modified: [glossary.yml]
+    read: [onomasia.yml, glossary.yml]
+    expect: {dirty: true}
+
+  - name: file-read-staged
+    state:
+      committed: [onomasia.yml, glossary.yml]
+      staged: [glossary.yml]
+    read: [onomasia.yml, glossary.yml]
+    expect: {dirty: true}
+
+  - name: file-read-untracked
+    state:
+      committed: [onomasia.yml]
+      untracked: [glossary.yml]
+    read: [onomasia.yml, glossary.yml]
+    expect: {dirty: true}
+
+  - name: file-read-ignored
+    state:
+      committed: [onomasia.yml]
+      ignored: [glossary.yml]
+    read: [onomasia.yml, glossary.yml]
+    expect: {dirty: true}
+
+  - name: file-read-outside
+    state:
+      committed: [onomasia.yml]
+      outside: [glossary.yml]
+    read: [onomasia.yml, ../glossary.yml]
+    expect: {dirty: true}

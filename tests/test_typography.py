@@ -6,6 +6,7 @@ binder, an operator taking a list, an overlay, and the six products. Each plante
 the issue of its check, and a build reporting an error writes nothing.
 """
 
+from collections.abc import Sequence
 import importlib.util
 import shutil
 import subprocess
@@ -26,9 +27,9 @@ SOURCE = Source("https://example.org/vault.git", "0123456789abcdef0123456789abcd
 class FixedProvenance:
     """Provenance of a test consumer, read from no repository."""
 
-    def sources(self, root: Path) -> tuple[Source, ...]:
+    def sources(self, root: Path, files: Sequence[Path]) -> tuple[Source, ...]:
         """Return the fixed source."""
-        del root
+        del root, files
         return (SOURCE,)
 
 
@@ -469,3 +470,29 @@ def test_a_document_binding_its_contract_under_contract_is_skipped(tmp_path: Pat
     targets = {"contract" if key == "_schema" else key: value for key, value in TARGETS.items()}
     result = _build(_consumer(tmp_path, {"targets.yml": targets}))
     assert {""} == {issue.pointer for issue in result.issues if issue.check == "invalid-contract"}
+
+
+def test_the_source_is_dirty_only_when_a_file_read_leaves_the_commit(tmp_path: Path) -> None:
+    """A build in a repository marks its source dirty when a record that it read changed, and
+    leaves it clean when another file changed, its own outputs included."""
+    root = _consumer(tmp_path, {})
+    identity = ["-c", "user.name=Test", "-c", "user.email=test@example.org"]
+    for arguments in (
+        ["init", "-q"],
+        ["add", "--all"],
+        [*identity, "-c", "commit.gpgsign=false", "commit", "-q", "-m", "records"],
+    ):
+        subprocess.run(["git", "-C", str(root), *arguments], check=True, capture_output=True)
+    configuration = load_configuration(root, root / "onomasia.yml")
+
+    def dirty() -> bool:
+        build_outputs(configuration)
+        table = yaml.safe_load((root / "out" / "table.yml").read_text(encoding="utf-8"))
+        return bool(table["sources"][0]["dirty"])
+
+    assert not dirty()
+    (root / "notes.md").write_text("draft\n", encoding="utf-8")
+    assert not dirty()
+    with (root / "notation.yml").open("a", encoding="utf-8") as handle:
+        handle.write("# changed\n")
+    assert dirty()

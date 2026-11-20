@@ -143,4 +143,4 @@ class Store:
 issues = check_records(default_configuration(Path(".")), Store({"store/notation.yml": NOTATION}))
 ```
 
-The function `build_outputs` also accepts a provenance, under the keyword `provenance`, beside the source under the keyword `source`. A provenance is an object whose method `sources` receives the root and returns a tuple of `Source`, one per repository behind the records.
+The function `build_outputs` also accepts a provenance, under the keyword `provenance`, beside the source under the keyword `source`. A provenance is an object whose method `sources` receives the root and the files read by the build, and returns a tuple of `Source`, one per repository behind the records. The class `GitProvenance` marks a source dirty when its commit lacks one of these files, as the [common fields](contracts.md#^common-fields) define it.

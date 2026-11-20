@@ -1,11 +1,13 @@
 """
 Provenance of generated documents: the repository, the commit and the state of their records.
 
-A build records the commit of the notation that it used, so a document generated from records
-names its sources. The provider of that information is a port, so that the core reads no
-repository itself; the Git adapter runs `git` on the root of the consumer. A document also lists,
-as its inputs, each record of another repository imported into its records, with the digest of its
-bytes.
+A build records the commit of the files that it read, so a document generated from records names
+its sources. A source is dirty when its commit does not hold one of those files: the file differs
+from its committed state, is untracked or ignored, or lies outside the repository. A change to any
+other file, the generated document included, leaves the source clean. The provider of that
+information is a port, so that the core reads no repository itself; the Git adapter runs `git` on
+the root of the consumer. A document also lists, as its inputs, each record of another repository
+imported into its records, with the digest of its bytes.
 
 Classes
 -------
@@ -24,6 +26,7 @@ public_location(url) -> str
     The location of a repository without the user information of its URL.
 """
 
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 import re
@@ -48,7 +51,7 @@ class Source:
     commit : str
         Full identifier of the commit checked out.
     dirty : bool
-        Whether the working tree held uncommitted changes.
+        Whether the commit does not hold one of the files read to generate the document.
     """
 
     repository: str
@@ -57,7 +60,7 @@ class Source:
 
     def describe(self) -> str:
         """State the source in one phrase."""
-        state = " with uncommitted changes" if self.dirty else ""
+        state = " with files read outside the commit" if self.dirty else ""
         return f"{self.repository} at {self.commit}{state}"
 
     def to_data(self) -> dict[str, object]:
@@ -130,30 +133,49 @@ def public_location(url: str) -> str:
 class ProvenanceProvider(Protocol):
     """Protocol of a provider of the sources of a root."""
 
-    def sources(self, root: Path) -> tuple[Source, ...]:
-        """Return the sources of the records under a root, empty when none is known."""
+    def sources(self, root: Path, files: Sequence[Path]) -> tuple[Source, ...]:
+        """Return the sources of the files read under a root, empty when none is known."""
+
+
+def _git(root: Path, *arguments: str) -> str | None:
+    """Run one command of Git on `root`, returning its output or None on failure."""
+    try:
+        completed = subprocess.run(
+            ["git", "--literal-pathspecs", "-C", str(root), *arguments],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+    except (OSError, subprocess.CalledProcessError):
+        return None
+    return completed.stdout.strip()
+
+
+def _outside_commit(top: Path, files: Sequence[Path]) -> bool:
+    """Whether the commit checked out under `top` does not hold one of `files`."""
+    resolved = [path.resolve() for path in files]
+    if any(not path.is_relative_to(top) for path in resolved):
+        return True
+    if not resolved:
+        return False
+    relative = [path.relative_to(top).as_posix() for path in resolved]
+    status = _git(
+        top, "status", "--porcelain", "--ignored", "--untracked-files=all", "--", *relative
+    )
+    return status is None or bool(status)
 
 
 class GitProvenance:
     """Provider reading the repository holding the root, through the command `git`."""
 
-    def sources(self, root: Path) -> tuple[Source, ...]:
-        """Return the repository holding the root, or nothing when the root lies in none."""
+    def sources(self, root: Path, files: Sequence[Path]) -> tuple[Source, ...]:
+        """Return the repository holding the root, or nothing when the root lies in none.
 
-        def git(*arguments: str) -> str | None:
-            """Run one command of Git on the root, returning its output or None on failure."""
-            try:
-                completed = subprocess.run(
-                    ["git", "-C", str(root), *arguments], capture_output=True, text=True, check=True
-                )
-            except (OSError, subprocess.CalledProcessError):
-                return None
-            return completed.stdout.strip()
-
-        commit = git("rev-parse", "HEAD")
-        if commit is None:
+        The source is dirty when the commit checked out does not hold one of `files`."""
+        commit = _git(root, "rev-parse", "HEAD")
+        top = _git(root, "rev-parse", "--show-toplevel")
+        if commit is None or top is None:
             return ()
-        remote = git("config", "--get", "remote.origin.url")
+        remote = _git(root, "config", "--get", "remote.origin.url")
         repository = public_location(remote) if remote else str(root)
-        status = git("status", "--porcelain")
-        return (Source(repository, commit, bool(status)),)
+        return (Source(repository, commit, _outside_commit(Path(top).resolve(), files)),)
