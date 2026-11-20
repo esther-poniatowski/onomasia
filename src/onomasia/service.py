@@ -99,8 +99,9 @@ def default_provider() -> StateProvider:
 def _repository(configuration: Configuration, provider: StateProvider | None) -> Repository:
     """Open the repository of the consumer through the read package of Anagraphe.
 
-    The configuration of Anagraphe is the file named by the section `texts`, else the file found
-    below the root; a root holding none opens with the empty configuration.
+    The configuration of Anagraphe is the file named by the section `texts`, else `anagraphe.yml`
+    at the root, in `.config/` or in `config/`; a root holding none opens with the empty
+    configuration.
 
     Raises
     ------
