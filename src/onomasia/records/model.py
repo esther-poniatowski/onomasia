@@ -36,7 +36,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Mapping, Union
 
-from anagraphe.targets.model import Target
+from anagraphe_read import Target
 
 from ..provenance import Input
 

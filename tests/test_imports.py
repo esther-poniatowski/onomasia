@@ -18,10 +18,16 @@ from pathlib import Path
 import shutil
 import subprocess
 
-from anagraphe.core.schemas import Items, Property, SchemaReader, Step
-from anagraphe.resolution import Blob, MemoryProvider, Mode, Reading, State, StateProvider
-from anagraphe.resolution.git import GitProvider, default_cache
-from anagraphe.targets.declarations import Declarations
+from anagraphe_read import (
+    Blob,
+    MemoryProvider,
+    Mode,
+    Reading,
+    State,
+    StateProvider,
+    git_provider,
+    open_repository,
+)
 import pytest
 import yaml
 
@@ -29,7 +35,7 @@ from onomasia.composition import Composer
 from onomasia.configuration import ImportLimits, load_configuration
 from onomasia.contracts import CONTRACT_SCHEMAS, MACRO_LOOKUP, MACRO_TABLE, TERM_TABLE
 from onomasia.errors import ConfigurationError
-from onomasia.imports import FOLLOWED, AnagrapheSources, consumer_repository
+from onomasia.imports import FOLLOWED, AnagrapheSources
 from onomasia.issues import IssueSink
 from onomasia.records.model import RecordKind
 from onomasia.repository import FileRecordSource, load_records
@@ -105,27 +111,26 @@ def _state(
     retired: dict[str, dict] | None = None,
     registered: dict[str, str] | None = None,
     configuration: object | None = None,
-    manifest: object | None = None,
+    identity: object | None = None,
 ) -> dict[str, Blob]:
-    """Write the state of a repository: its manifest, its configuration of Anagraphe, its record
-    registry and its records, keyed by path. Each record of data is registered under its
-    identifier, and `registered` adds identifiers registered at given paths."""
+    """Write the state of a repository: its configuration of Anagraphe, whose section `repository`
+    holds `identity` or else the identifier of the repository, its record registry and its records,
+    keyed by path. Each record of data is registered under its identifier, and `registered` adds
+    identifiers registered at given paths."""
     paths = {str(data["id"]): path for path, data in records.items() if isinstance(data, dict)} | (
         registered or {}
     )
     files: dict[str, Blob] = {
-        "repository.yml": Blob(
-            _yaml(
-                manifest
-                if manifest is not None
-                else {"_schema": "anagraphe:repository@1", "repository": {"id": repository}}
-            )
-        ),
         "anagraphe.yml": Blob(
             _yaml(
                 configuration
                 if configuration is not None
-                else {"_schema": "anagraphe:configuration@2", "targets": {}, "records": {}}
+                else {
+                    "_schema": "anagraphe:configuration@3",
+                    "repository": identity if identity is not None else {"id": repository},
+                    "targets": {},
+                    "records": {},
+                }
             )
         ),
         "record-registry.yml": Blob(
@@ -176,19 +181,14 @@ def _consumer(
     *,
     imports: dict[str, int] | None = None,
     outputs: list[dict] | None = None,
-    manifest: object | None = None,
 ) -> Path:
-    """Write the consumer: its manifest, its configuration of Anagraphe naming both repositories
+    """Write the consumer: its configuration of Anagraphe naming its identifier, both repositories
     and its schema registry, its configuration of Onomasia, and its records."""
     shutil.copytree(Path(str(resources.files("onomasia") / "data" / "schemas")), root / "schemas")
     files: dict[str, object] = {
-        "repository.yml": (
-            manifest
-            if manifest is not None
-            else {"_schema": "anagraphe:repository@1", "repository": {"id": CONSUMER}}
-        ),
         "anagraphe.yml": {
-            "_schema": "anagraphe:configuration@2",
+            "_schema": "anagraphe:configuration@3",
+            "repository": {"id": CONSUMER},
             "targets": {"records": {"registry": REGISTRY}},
             "resolution": {
                 "repositories": {
@@ -375,17 +375,14 @@ def test_unread_source_is_an_error_at_the_key_from(tmp_path: Path) -> None:
     assert not (root / "out").exists()
 
 
-def test_source_read_without_the_schemas_of_its_contract_is_a_warning(tmp_path: Path) -> None:
-    """Without a schema registry, the resolver leaves the identifier of the record unverified, and
-    Onomasia still reads the record."""
+def test_source_read_without_the_schemas_of_its_contract(tmp_path: Path) -> None:
+    """Without a schema registry, the resolver verifies the record by the identifier and the
+    contract that it writes, and Onomasia reads the record."""
     root = _consumer(tmp_path, {"glossary-project.yml": PROJECT})
     configuration = yaml.safe_load((root / "anagraphe.yml").read_text())
     del configuration["targets"]["records"]
     (root / "anagraphe.yml").write_bytes(_yaml(configuration))
-    issues = _build(root, MemoryProvider(_states())).issues
-    assert [(issue.check, issue.severity, issue.pointer) for issue in issues] == [
-        ("unverified-target", Severity.WARNING, "/imports/0/from")
-    ]
+    assert _build(root, MemoryProvider(_states())).issues == []
     assert _terms(root)["curve"] == (LEXICON, "base.yml")
 
 
@@ -405,17 +402,16 @@ PLANTED: dict[str, tuple[object, object, tuple[str, str]]] = {
     "unknown-repository": (_target("base", "nowhere"), _states(), PROJECT_AT),
     "renamed-repository": (
         _target("base", "old-lexicon"),
-        _states(
-            manifest={
-                "_schema": "anagraphe:repository@1",
-                "repository": {"id": LEXICON, "retired": ["old-lexicon"]},
-            }
-        ),
+        _states(identity={"id": LEXICON, "retired": ["old-lexicon"]}),
         PROJECT_AT,
     ),
     "unreadable-target-state": (_target("base"), {}, PROJECT_AT),
     "invalid-target-state": (_target("base"), "invalid", PROJECT_AT),
-    "invalid-target-repository": (_target("base"), _states(manifest="no: manifest\n"), PROJECT_AT),
+    "invalid-target-repository": (
+        _target("base"),
+        _states(identity={"id": "elsewhere"}),
+        PROJECT_AT,
+    ),
     "invalid-record-registry": (
         _target("base"),
         _states(retired={"gone": {"date": "yesterday"}}),
@@ -423,7 +419,13 @@ PLANTED: dict[str, tuple[object, object, tuple[str, str]]] = {
     ),
     "unverified-target": (
         _target("base"),
-        _states(configuration={"_schema": "anagraphe:configuration@2", "targets": {}}),
+        _states(
+            configuration={
+                "_schema": "anagraphe:configuration@3",
+                "repository": {"id": LEXICON},
+                "targets": {},
+            }
+        ),
         PROJECT_AT,
     ),
     "unknown-record": (_target("absent"), _states(), PROJECT_AT),
@@ -732,12 +734,13 @@ def _compose_overlay(root: Path, provider: StateProvider) -> tuple[object, Issue
     configuration = load_configuration(root, root / "onomasia.yml")
     sink = IssueSink(configuration.severities)
     validator = SchemaValidator()
-    repository = consumer_repository(root)
+    opened = open_repository(root, provider=provider)
+    repository = opened.identity.id
     composer = Composer(
         load_records(FileRecordSource(root, configuration.records), validator, sink, repository),
         sink,
         repository=repository,
-        sources=AnagrapheSources(root, provider, validator, sink),
+        sources=AnagrapheSources(opened, validator, sink),
         limits=configuration.imports,
     )
     [overlay] = composer.records(RecordKind.OVERLAY)
@@ -991,38 +994,32 @@ def test_notation_of_version_2_requires_a_unit_under_denotes() -> None:
     assert "/entries/w-ff/denotes" in {pointer for pointer, _ in errors}
 
 
-def test_anagraphe_reads_the_target_fields_of_the_registered_schemas() -> None:
-    """The check of the targets of Anagraphe finds the conditional target field `from`, with the
-    contract of the importing record, and the target field `denotes` of a notation."""
-    root = Path(__file__).resolve().parents[1]
-    declarations = Declarations(SchemaReader(root, root / "specs" / "schema-registry.yml"))
-    for contract, expected in (
-        ("onomasia:glossary@2", {"imports[*].from": (True, (("onomasia:glossary",),))}),
-        (
-            "onomasia:notation@2",
-            {
-                "imports[*].from": (True, (("onomasia:notation",),)),
-                "entries.*.denotes": (False, ()),
-            },
-        ),
-        ("onomasia:overlay@2", {"overlays": (True, (("onomasia:notation",),))}),
+def test_the_registered_schemas_declare_their_target_fields() -> None:
+    """The schemas of version 2 declare the identifier read by Anagraphe under `x-identifier`, and
+    each field holding a logical target under `x-target-contract`, with the contract of the record
+    that the target names; `denotes` names a unit of any contract."""
+    schemas = _schemas()
+
+    def at(name: str, *path: str) -> dict:
+        node = schemas[name]
+        for key in path:
+            node = node[key]
+        return node
+
+    for name in ("glossary.schema.yml", "notation.schema.yml", "overlay.schema.yml"):
+        assert schemas[name]["x-identifier"] == "id"
+    for name, contract in (
+        ("glossary.schema.yml", "onomasia:glossary"),
+        ("notation.schema.yml", "onomasia:notation"),
     ):
-        schema = declarations.of(contract)
-        assert schema is not None and schema.identifier == ("id",)
-        fields = {_path(item.path): (item.conditional, item.contracts) for item in schema.targets}
-        assert fields == expected
-    assert declarations.reader.problems == [] and declarations.problems == []
-
-
-def _path(steps: tuple[Step, ...]) -> str:
-    """Write the key path of a target field, as `imports[*].from`."""
-    text = ""
-    for step in steps:
-        if isinstance(step, Property):
-            text += f".{step.name}"
-        else:
-            text += "[*]" if isinstance(step, Items) else ".*"
-    return text.lstrip(".")
+        assert at(name, "properties", "imports", "items", "properties", "from")[
+            "x-target-contract"
+        ] == [contract]
+    assert at("overlay.schema.yml", "properties", "overlays")["x-target-contract"] == [
+        "onomasia:notation"
+    ]
+    denotes = at("notation.schema.yml", "$defs", "entry", "properties", "denotes")
+    assert denotes["$ref"].endswith("#/$defs/target") and "x-target-contract" not in denotes
 
 
 # --- the Git provider ---------------------------------------------------------------------------
@@ -1056,7 +1053,7 @@ def test_git_provider_reads_the_source_from_a_local_clone(
     monkeypatch.setenv("ANAGRAPHE_REPOSITORIES", str(machine))
     monkeypatch.setitem(COMMITS, LEXICON, _git(clone, "rev-parse", "HEAD"))
     root = _consumer(tmp_path / "thesis", {"glossary-project.yml": PROJECT})
-    result = _build(root, GitProvider(default_cache()))
+    result = _build(root, git_provider())
     assert result.issues == []
     assert _document(root, "terms.yml")["inputs"] == [
         {

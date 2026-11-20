@@ -14,7 +14,7 @@ parse_record(kind, data, resource, *, repository, origin, size) -> Record
 
 from typing import Callable, Mapping, Sequence, cast
 
-from anagraphe.targets.model import Target
+from anagraphe_read import Target
 
 from ..provenance import Input
 from .model import (

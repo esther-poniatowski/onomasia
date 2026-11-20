@@ -29,7 +29,7 @@ Composer
 from dataclasses import dataclass, field, replace
 from typing import Iterable, Mapping
 
-from anagraphe.targets.model import Target
+from anagraphe_read import Target
 
 from .configuration import ImportLimits
 from .imports import UNRESOLVED_IMPORT, SourceReader

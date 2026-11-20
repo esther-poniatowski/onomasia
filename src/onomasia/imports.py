@@ -1,13 +1,14 @@
 """
 Imports across repositories: the limits of an import closure, the port reading the source of an
-import, and its adapter over the record resolver of Anagraphe.
+import, and its adapter over the repository opened by the read package of Anagraphe.
 
 An import of `onomasia:glossary@2` or `onomasia:notation@2` may name its source by a logical target
 into another repository. The composer reads such a source through a `SourceReader`, so that the
-composition depends on no resolver. The adapter `AnagrapheSources` builds the resolution context of
-the consumer, which selects the state of every repository reached, then resolves and reads each
-target through the record resolver of Anagraphe and its state provider. The provider is injected,
-so that a test serves its states from memory and the command line reads them from Git.
+composition depends on no resolver. The adapter `AnagrapheSources` resolves and reads each target
+through the repository of the consumer, opened by `anagraphe_read.open_repository`, whose
+resolution context selects the state of every repository reached. The state provider of that
+repository is injected, so that a test serves its states from memory and the command line reads
+them from Git.
 
 Every finding of the resolver keeps its kind. A finding that leaves the source unread is blocking:
 the composer reports it at the severity of its check, an error by default. Three findings let the
@@ -23,39 +24,27 @@ SourceRead
 SourceReader
     Protocol of a reader of the sources of imports from other repositories.
 AnagrapheSources
-    Reader resolving each target through the record resolver of Anagraphe.
-
-Functions
----------
-consumer_repository(root) -> str | None
-    Identifier declared by the manifest of the consumer, None without one.
+    Reader resolving each target through the repository of the consumer.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 import hashlib
-from pathlib import Path
 from typing import Protocol
 
-from anagraphe.configuration import RepositoryConfig, load_config, locate_config
-from anagraphe.core.configuration import CONFIG_LOCATIONS
-from anagraphe.core.configuration import ConfigurationError as AnagrapheConfigurationError
-from anagraphe.core.schemas import SchemaReader
-from anagraphe.resolution import (
+from anagraphe_read import (
+    RENAMED_REPOSITORY,
+    RENAMED_TARGET,
+    UNVERIFIED_TARGET,
     Finding,
     Outcome,
     RecordRead,
-    RecordResolver,
+    Repository,
     Resolution,
-    StateProvider,
-    build_context,
+    Target,
 )
-from anagraphe.resolution.configuration import ResolutionConfig
-from anagraphe.targets.declarations import Declarations
-from anagraphe.targets.kinds import RENAMED_REPOSITORY, RENAMED_TARGET, UNVERIFIED_TARGET
-from anagraphe.targets.manifest import read_manifest
-from anagraphe.targets.model import Target
+from anagraphe_read import ConfigurationError as AnagrapheConfigurationError
 
 from .errors import ConfigurationError
 from .issues import IssueSink
@@ -121,13 +110,6 @@ class SourceReader(Protocol):
         """Read the record of a normalized target into another repository, of a format."""
 
 
-def consumer_repository(root: Path) -> str | None:
-    """Return the identifier declared by the manifest `repository.yml` of the consumer, None when
-    the consumer holds no valid manifest."""
-    manifest = read_manifest(root).manifest
-    return manifest.id if manifest is not None else None
-
-
 def _findings(findings: tuple[Finding, ...], read: bool) -> tuple[ImportFinding, ...]:
     """Classify the findings of the resolver. A rename never blocks, and a contract left
     unverified blocks only when the record itself is left unread; every other finding blocks."""
@@ -143,46 +125,40 @@ def _findings(findings: tuple[Finding, ...], read: bool) -> tuple[ImportFinding,
 
 class AnagrapheSources:
     """
-    Reader resolving each target through the record resolver of Anagraphe.
+    Reader resolving each target through the repository of the consumer.
 
-    The resolution context and the resolver are built at the first target, so that a consumer
-    importing from no other repository reads neither its submodules nor its states. Each record is
-    read once per run, keyed by its repository, its commit and its path.
+    The repository builds its resolution context and its resolver at the first target, so that a
+    consumer importing from no other repository reads neither its submodules nor its states. Each
+    record is read once per run, keyed by its repository, its commit and its path.
 
     Parameters
     ----------
-    root : Path
-        Root of the consumer, whose submodules and section `resolution` select the states.
-    provider : StateProvider
-        Reader of the selected states, such as the Git provider of Anagraphe.
+    repository : Repository
+        Repository of the consumer, opened by the read package of Anagraphe with its provider.
     validator : SchemaValidator
         Validator of the formats, applied to each record read.
     sink : IssueSink
         Collector of the issues of the records read, each reported at the location of its record.
-    anagraphe : Path | None
-        Configuration of Anagraphe, None for the file found below the root, or for none.
     """
 
-    def __init__(
-        self,
-        root: Path,
-        provider: StateProvider,
-        validator: SchemaValidator,
-        sink: IssueSink,
-        anagraphe: Path | None = None,
-    ) -> None:
-        self._root = root
-        self._provider = provider
+    def __init__(self, repository: Repository, validator: SchemaValidator, sink: IssueSink) -> None:
+        self._repository = repository
         self._validator = validator
         self._sink = sink
-        self._anagraphe = anagraphe
-        self._resolver: RecordResolver | None = None
         self._reads: dict[tuple[str, str, str, RecordKind], SourceRead] = {}
 
     def read(self, target: Target, kind: RecordKind) -> SourceRead:
-        """Resolve a target, then read, validate and parse its record."""
-        resolver = self._resolver_of_root()
-        resolution = resolver.resolve(target)
+        """Resolve a target, then read, validate and parse its record.
+
+        Raises
+        ------
+        ConfigurationError
+            If the resolution context of the consumer selects two states of one repository.
+        """
+        try:
+            resolution = self._repository.resolve(target)
+        except AnagrapheConfigurationError as error:
+            raise ConfigurationError(f"the resolution of imports: {error}") from error
         if resolution.outcome is Outcome.LOCAL:
             return SourceRead(None, _findings(resolution.findings, True), resolution.target.id)
         provenance = resolution.provenance
@@ -195,16 +171,14 @@ class AnagrapheSources:
         assert provenance.path is not None
         key = (provenance.repository, provenance.commit, provenance.path, kind)
         if key not in self._reads:
-            self._reads[key] = self._record(resolver, resolution, kind)
+            self._reads[key] = self._record(resolution, kind)
         read = self._reads[key]
         warnings = _findings(resolution.findings, True)
         return SourceRead(read.record, warnings + read.findings, read.local)
 
-    def _record(
-        self, resolver: RecordResolver, resolution: Resolution, kind: RecordKind
-    ) -> SourceRead:
+    def _record(self, resolution: Resolution, kind: RecordKind) -> SourceRead:
         """Read the record of a resolved target, verified by the resolver, then by its schema."""
-        read: RecordRead = resolver.read(resolution, ((kind.contract,),))
+        read: RecordRead = self._repository.read(resolution, ((kind.contract,),))
         findings = _findings(read.findings, read.data is not None)
         if read.data is None or any(finding.blocking for finding in findings):
             return SourceRead(None, findings)
@@ -230,43 +204,3 @@ class AnagrapheSources:
             )
             return SourceRead(None, findings + (ImportFinding(UNRESOLVED_IMPORT, message, True),))
         return SourceRead(record, findings)
-
-    def _resolver_of_root(self) -> RecordResolver:
-        """Return the resolver of the root, built at the first call.
-
-        Raises
-        ------
-        ConfigurationError
-            If the configuration of Anagraphe is invalid, or the resolution context selects two
-            states of one repository.
-        """
-        if self._resolver is not None:
-            return self._resolver
-        try:
-            manifest = read_manifest(self._root).manifest
-            config = self._configuration()
-            resolution = config.resolution if config is not None else ResolutionConfig()
-            context = build_context(self._root, manifest, resolution, self._provider)
-            records = config.targets.records if config is not None and config.targets else None
-            declarations = (
-                Declarations(SchemaReader(self._root, records.registry))
-                if records is not None
-                else None
-            )
-        except (AnagrapheConfigurationError, OSError) as error:
-            raise ConfigurationError(f"the resolution of imports: {error}") from error
-        self._resolver = RecordResolver(
-            context,
-            self._provider,
-            declarations,
-            records.binding if records is not None else "_schema",
-        )
-        return self._resolver
-
-    def _configuration(self) -> RepositoryConfig | None:
-        """Return the configuration of Anagraphe of the root, None when the root holds none."""
-        if self._anagraphe is not None:
-            return load_config(self._root, self._anagraphe)
-        if not any((self._root / location).is_file() for location in CONFIG_LOCATIONS):
-            return None
-        return load_config(self._root, locate_config(self._root))

@@ -61,6 +61,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **Breaking:** Onomasia reads Anagraphe only through the interface of its read package
+  `anagraphe-read`, which replaces the distribution `anagraphe` as a dependency. Each run opens the
+  repository of the consumer with `open_repository`, which resolves and reads the sources of
+  imports and the bindings of texts. The identifier of the consumer is the identity that Anagraphe
+  derives, from the section `repository` of `anagraphe.yml`, the remote or the folder, instead of
+  the retired manifest `repository.yml`. An invalid configuration of Anagraphe now stops every run.
 - **Breaking:** Onomasia reads `onomasia:denotes-targets@3` and writes `onomasia:macro-table@2` and
   `onomasia:macro-lookup@2`. A target of the denotes targets may omit `repository`, and then names
   a unit of the consumer: Onomasia normalizes it by the identifier of the consumer. Each unit is

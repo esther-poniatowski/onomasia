@@ -482,7 +482,7 @@ def _check_meaning(context: CheckContext, visible: Visible, entry: Entry, pointe
             visible,
             f"{pointer}/denotes",
             f"{entry.denotes} names no repository, and the repository holding the notation "
-            "declares no identifier in repository.yml",
+            "has no identifier: declare repository: {id: <identifier>} in its anagraphe.yml",
         )
 
 

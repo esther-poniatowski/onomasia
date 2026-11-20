@@ -37,7 +37,7 @@ import re
 from dataclasses import dataclass
 from typing import Iterable, Mapping, Sequence
 
-from anagraphe.targets.model import Target
+from anagraphe_read import Target
 
 from ..composition import Composer, Composition, Visible
 from ..configuration import StatusRole, Texts, Typography, Vocabulary

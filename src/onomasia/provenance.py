@@ -78,7 +78,7 @@ class Input:
     Attributes
     ----------
     repository : str
-        Identifier of the repository, as its manifest `repository.yml` declares it.
+        Identifier of the repository, as Anagraphe derives it.
     commit : str
         Full identifier of the commit selected by the resolution context of the consumer.
     identifier : str

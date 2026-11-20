@@ -15,8 +15,7 @@ SchemaValidator
 from importlib import resources
 from typing import Iterator, Mapping
 
-from anagraphe.targets.resource import ADDRESSING_FILE, ADDRESSING_ID
-from anagraphe.targets.resource import schema as addressing_schema
+from anagraphe_read import ADDRESSING_ID, addressing_schema
 from jsonschema import Draft202012Validator
 from jsonschema.exceptions import ValidationError
 from referencing import Registry, Resource
@@ -67,7 +66,7 @@ class SchemaValidator:
         contents = [
             (identifier, Resource.from_contents(schema)) for identifier, schema in schemas.items()
         ]
-        contents.append((ADDRESSING_ID, Resource.from_contents(addressing_schema(ADDRESSING_FILE))))
+        contents.append((ADDRESSING_ID, Resource.from_contents(addressing_schema())))
         registry: Registry = Registry().with_resources(contents)
         self._registry = registry
         self._schemas = schemas

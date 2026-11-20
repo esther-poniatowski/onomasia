@@ -7,9 +7,11 @@ check stops there, so that a check passes exactly when the build passes. The bui
 outputs only when no error was reported, each file replaced in one step, so that a failed build
 leaves the former outputs whole.
 
-The composition reads the sources of imports from other repositories through a state provider of
-Anagraphe. Both services accept the provider, so that a caller serves the states from memory; by
-default, the provider reads the Git stores of the machine and its cache.
+Both services open the repository of the consumer through the read package of Anagraphe, which
+gives its identifier, the bindings of its texts and the sources of its imports from other
+repositories. Those sources are read through a state provider. Both services accept the provider,
+so that a caller serves the states from memory; by default, the provider reads the Git stores of
+the machine and its cache.
 
 Classes
 -------
@@ -32,9 +34,8 @@ import os
 from pathlib import Path
 import tempfile
 
-from anagraphe.resolution import StateProvider
-from anagraphe.resolution.git import GitProvider, default_cache
-from anagraphe.targets.model import Target
+from anagraphe_read import ConfigurationError as AnagrapheConfigurationError
+from anagraphe_read import Repository, StateProvider, Target, git_provider, open_repository
 import yaml
 
 from .checks import CheckContext, run_record_checks
@@ -47,7 +48,8 @@ from .contracts import (
     read_signatures,
     term_table_document,
 )
-from .imports import AnagrapheSources, consumer_repository
+from .errors import ConfigurationError
+from .imports import AnagrapheSources
 from .issues import Issue, IssueSink
 from .provenance import GitProvenance, ProvenanceProvider, Source
 from .records.model import RecordKind
@@ -91,7 +93,43 @@ def _compositions(composer: Composer, kind: RecordKind) -> list[Composition]:
 def default_provider() -> StateProvider:
     """Return the Git provider of Anagraphe, reading the clones of the machine, then its cache,
     which the variable `ANAGRAPHE_CACHE` may name."""
-    return GitProvider(default_cache())
+    return git_provider()
+
+
+def _repository(configuration: Configuration, provider: StateProvider | None) -> Repository:
+    """Open the repository of the consumer through the read package of Anagraphe.
+
+    The configuration of Anagraphe is the file named by the section `texts`, else the file found
+    below the root; a root holding none opens with the empty configuration.
+
+    Raises
+    ------
+    ConfigurationError
+        If the configuration of Anagraphe is invalid.
+    """
+    texts = configuration.texts
+    try:
+        return open_repository(
+            configuration.root,
+            config=texts.anagraphe if texts is not None else None,
+            provider=provider if provider is not None else default_provider(),
+        )
+    except AnagrapheConfigurationError as error:
+        raise ConfigurationError(f"the configuration of Anagraphe: {error}") from error
+
+
+def _identifier(repository: Repository) -> str | None:
+    """Return the identifier of the consumer, None when its repository has no identity.
+
+    Raises
+    ------
+    ConfigurationError
+        If the former identifiers of the consumer list its identifier.
+    """
+    try:
+        return repository.identity.id
+    except AnagrapheConfigurationError as error:
+        raise ConfigurationError(f"the identity of the repository: {error}") from error
 
 
 class _RecordingSource:
@@ -113,24 +151,17 @@ def _checked(
     source: RecordSource | None,
     sink: IssueSink,
     validator: SchemaValidator,
-    provider: StateProvider | None,
+    repository: Repository,
 ) -> Composer:
     """Load, compose and check the records of a consumer, returning the composer."""
     root = configuration.root
     source = source or FileRecordSource(root, configuration.records)
-    repository = consumer_repository(root)
-    sources = AnagrapheSources(
-        root,
-        provider if provider is not None else default_provider(),
-        validator,
-        sink,
-        configuration.texts.anagraphe if configuration.texts is not None else None,
-    )
+    identifier = _identifier(repository)
     composer = Composer(
-        load_records(source, validator, sink, repository),
+        load_records(source, validator, sink, identifier),
         sink,
-        repository=repository,
-        sources=sources,
+        repository=identifier,
+        sources=AnagrapheSources(repository, validator, sink),
         limits=configuration.imports,
     )
     notations = _compositions(composer, RecordKind.NOTATION)
@@ -194,9 +225,12 @@ def check_records(
         If the configuration of Anagraphe or the resolution context of the root is invalid.
     """
     sink = IssueSink(configuration.severities)
-    composer, signatures, _ = _assemble(configuration, source, None, sink, provider)
+    repository = _repository(configuration, provider)
+    composer, signatures, _ = _assemble(configuration, source, None, sink, repository)
     if configuration.texts is not None:
-        _check_texts(configuration, composer, signatures, bindings, sink)
+        _check_texts(
+            configuration, composer, signatures, bindings or AnagrapheBindings(repository), sink
+        )
     return _sorted(sink)
 
 
@@ -204,7 +238,7 @@ def _check_texts(
     configuration: Configuration,
     composer: Composer,
     signatures: dict[Target, TargetSignature],
-    bindings: BindingSource | None,
+    bindings: BindingSource,
     sink: IssueSink,
 ) -> None:
     """Check every text of the consumer against the records bound to it."""
@@ -221,7 +255,7 @@ def _check_texts(
         configuration.vocabulary,
         configuration.typography,
         composer,
-        bindings or AnagrapheBindings(root, texts.anagraphe),
+        bindings,
         signatures,
         scope,
         sink,
@@ -338,7 +372,7 @@ def _assemble(
     source: RecordSource | None,
     provenance: ProvenanceProvider | None,
     sink: IssueSink,
-    provider: StateProvider | None,
+    repository: Repository,
 ) -> tuple[Composer, dict[Target, TargetSignature], list[tuple[Path, str | None]]]:
     """Check the records, read the inputs, and compute the text of each output, writing nothing;
     return the composer and the signatures, for the checks of texts.
@@ -349,13 +383,13 @@ def _assemble(
     validator = SchemaValidator()
     root = configuration.root
     recording = _RecordingSource(source or FileRecordSource(root, configuration.records))
-    composer = _checked(configuration, recording, sink, validator, provider)
+    composer = _checked(configuration, recording, sink, validator, repository)
     signatures = read_signatures(
         configuration.build.denotes_targets,
         configuration.root,
         validator,
         sink,
-        repository=consumer_repository(configuration.root),
+        repository=_identifier(repository),
     )
     files = [
         root / configuration.resource,
@@ -402,7 +436,10 @@ def build_outputs(
         If the configuration of Anagraphe or the resolution context of the root is invalid.
     """
     sink = IssueSink(configuration.severities)
-    _, _, contents = _assemble(configuration, source, provenance or GitProvenance(), sink, provider)
+    repository = _repository(configuration, provider)
+    _, _, contents = _assemble(
+        configuration, source, provenance or GitProvenance(), sink, repository
+    )
     if sink.has_errors():
         return BuildResult(_sorted(sink), ())
     written: list[Path] = []

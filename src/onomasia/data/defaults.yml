@@ -173,7 +173,7 @@ checks:
     gloss: the bytes of the selected state of the repository of a source fail the verification of the provider
   invalid-target-repository:
     severity: error
-    gloss: the manifest or the configuration of the selected state of a source is absent, invalid, or declares another identifier
+    gloss: the configuration of the selected state of a source is invalid, or the state has no identity or another identity
   invalid-record-registry:
     severity: error
     gloss: the record registry of the selected state of a source violates its contract

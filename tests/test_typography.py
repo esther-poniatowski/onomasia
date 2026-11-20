@@ -33,7 +33,7 @@ class FixedProvenance:
         return (SOURCE,)
 
 
-MANIFEST = "_schema: anagraphe:repository@1\nrepository:\n  id: vault\n"
+ANAGRAPHE = "_schema: anagraphe:configuration@3\nrepository:\n  id: vault\n"
 """Manifest of the consumer, whose identifier normalizes the targets of its notation."""
 
 
@@ -123,7 +123,7 @@ def _consumer(
     }
     (tmp_path / "onomasia.yml").write_text(yaml.safe_dump(configuration), encoding="utf-8")
     files = {
-        "repository.yml": MANIFEST,
+        "anagraphe.yml": ANAGRAPHE,
         "glossary.yml": GLOSSARY,
         "notation.yml": NOTATION,
         "overlay.yml": OVERLAY,
@@ -341,7 +341,10 @@ PLANTED = {
         {"notation.yml": _notation(**{"set-of": {"denotes": _unit("set"), "body": "\\{#1\\}"}})},
         "/entries/set-of",
     ),
-    "unnormalized-target": ({"repository.yml": "no: manifest\n"}, "/entries/w-ff/denotes"),
+    "unnormalized-target": (
+        {"anagraphe.yml": "_schema: anagraphe:configuration@3\n"},
+        "/entries/w-ff/denotes",
+    ),
     "macro-cycle": (
         {
             "notation.yml": _notation(

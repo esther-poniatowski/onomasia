@@ -33,7 +33,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Mapping, Sequence, cast
 
-from anagraphe.targets.model import Target
+from anagraphe_read import Target
 import yaml
 
 from .composition import Composition

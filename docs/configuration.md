@@ -65,9 +65,9 @@ A section `vocabulary` or `typography` replaces the packaged section as a whole.
 
 ## Imports across repositories
 
-An import naming a record of another repository is read through Anagraphe, as the [formats](formats.md#^across) state. Onomasia takes two values of Anagraphe from the consumer:
+An import naming a record of another repository is read through Anagraphe, as the [formats](formats.md#^across) state. Onomasia opens the repository of the consumer through the read package of Anagraphe, `anagraphe-read`, and takes two values from it:
 
-- the identifier declared by the manifest `repository.yml` of the consumer, used to normalize the targets of its records;
+- the identifier of the consumer, which Anagraphe derives from the section `repository` of its configuration, its remote or its folder, used to normalize the targets of its records;
 - the configuration of Anagraphe, named by `texts.anagraphe` when the consumer declares texts, and otherwise found at `config/tools/anagraphe.yml` or `anagraphe.yml` below the root.
 
 The section `resolution` of that configuration declares the repositories that are not submodules of the root, each with its commit and its remote. Its section `targets.records` names the schema registry of the consumer. The resolver reads the identifier and the contract of each record from the schemas of that registry. A consumer without that registry still reads its sources. Each such import is then reported by the warning `unverified-target`. The section `imports` of `onomasia.yml` sets the limits of each closure. Imported content cannot change them. ^imports

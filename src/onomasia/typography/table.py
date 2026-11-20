@@ -29,7 +29,7 @@ from dataclasses import dataclass
 import re
 from typing import Mapping, Sequence
 
-from anagraphe.targets.model import Target
+from anagraphe_read import Target
 
 from ..composition import Composition, Visible
 from ..configuration import Typography
