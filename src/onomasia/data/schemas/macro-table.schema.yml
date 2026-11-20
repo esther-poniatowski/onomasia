@@ -18,7 +18,7 @@ properties:
     items:
       type: object
       additionalProperties: false
-      required: [id, notation, target, name, body, arity, entry, binder, separator, class]
+      required: [id, notation, target, name, body, arity, entry, binder, list, separator, class]
       properties:
         id: {$ref: 'common.schema.yml#/$defs/id'}
         notation: {$ref: 'common.schema.yml#/$defs/id'}
@@ -32,6 +32,7 @@ properties:
         arity: {type: integer, minimum: 0}
         entry: {type: boolean}
         binder: {type: [integer, 'null'], minimum: 1}
+        list: {type: [integer, 'null'], minimum: 1}
         separator: {type: [string, 'null']}
         class: {type: [string, 'null']}
 examples:
@@ -53,6 +54,7 @@ examples:
         arity: 2
         entry: false
         binder: 1
+        list: null
         separator: null
         class: null
       - id: lam
@@ -63,5 +65,6 @@ examples:
         arity: 0
         entry: false
         binder: null
+        list: null
         separator: null
         class: null

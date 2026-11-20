@@ -14,4 +14,4 @@ This list holds the goals of `onomasia` that span several parts of the project.
 
 ## Arguments of a macro
 
-- [ ] Decide the arity of a unit that is both a binder and variadic. The [rule of the denotes targets](docs/contracts.md#^denotes-targets) gives a variadic unit the arity 1, since its items travel in one argument, whereas `binder` names a further argument for the bound variable; `gnomon denotes-targets` gives such a unit the arity 2. Fix the rule, then align the generator of Gnomon. No record schema of Gnomon declares such a unit yet 🆔 variadic-binder
+- [x] Decide the arity of a unit that is both a binder and variadic. The [denotes targets](docs/contracts.md#^denotes-targets) now state the number of arguments of a unit, the slot of its bound variable and the slot of its list, and Onomasia derives the arity from these facts. The generator of Gnomon writes the new facts in its own step 🆔 variadic-binder ✅ 2026-11-20

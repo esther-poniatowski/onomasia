@@ -25,7 +25,7 @@ Every document names its contract under `contract`, and the records behind it un
 - `commit`, the full identifier of its commit;
 - `dirty`, true when its working tree held uncommitted changes.
 
-With these fields, a build records the commit of the notation used. When the root of the consumer lies in no Git repository, `sources` is empty. An input document breaking its schema is reported by the check `invalid-contract`, at the document itself. ^common-fields
+With these fields, a build records the commit of the notation used. When the root of the consumer lies in no Git repository, `sources` is empty. Onomasia validates an input document in two parts. The check `invalid-contract` reports a header breaking the schema or naming another contract, and Onomasia skips the whole document. The check `invalid-item` reports an item breaking the schema, at that item, and Onomasia skips the item only. ^common-fields
 
 A document written by Onomasia also lists under `inputs` each record of another repository [imported](formats.md#^across) by its records. Each item of `inputs` describes one record by four fields:
 
@@ -40,13 +40,19 @@ Every document written by Onomasia names a unit by a *normalized* logical target
 
 ## Inputs
 
-The *denotes targets* list the [units](formats.md#^meaning), each under `target` as a logical target, with the arguments read by Onomasia. A target without `repository` names a unit of the consumer, so Onomasia normalizes it by the identifier of the consumer. Onomasia then matches a unit with an entry by their normalized targets, never by a text. Each unit declares three properties of its arguments:
+The *denotes targets* list the [units](formats.md#^meaning), each under `target` as a logical target, with the facts of its domain. A target without `repository` names a unit of the consumer, so Onomasia normalizes it by the identifier of the consumer. Onomasia then matches a unit with an entry by their normalized targets, never by a text. Each unit declares three facts, none of them typographic:
 
-- `arity`, the number of its arguments;
-- `binder`, the position, counted from 1, of the argument binding a variable;
-- `variadic`, true for an operator taking a list of items.
+- `arguments`, the number of its arguments;
+- `bound`, the slot, counted from 1, of the argument binding a variable;
+- `list`, the slot, counted from 1, of the argument taking a list of items.
 
-A unit absent from every document takes no argument, and passes unreported. For example, an entry designating the block anchor of a note takes no argument. When several documents name one unit, the later document wins. The producer gives a variadic unit the arity 1, since its items travel in one argument; Onomasia copies the arity without checking it. ^denotes-targets
+A slot must lie between 1 and `arguments`, and `bound` and `list` must name two different slots. The check `invalid-item` reports a unit breaking either condition, and Onomasia skips that unit. Onomasia derives the arguments of the macro from the three facts:
+
+- the macro takes one mandatory argument per argument of the unit, so its arity is `arguments`;
+- its binder is the slot `bound`;
+- its argument at the slot `list` holds all the items of the list, joined by the separator of the entry.
+
+For example, a union over an index set binds its index at slot 1 and takes its terms at slot 2, so it declares `arguments: 2`, `bound: 1` and `list: 2`. A unit absent from every document takes no argument, and passes unreported. For example, an entry designating the block anchor of a note takes no argument. When several documents name one unit, the later document wins. ^denotes-targets
 
 The *scope table* maps each audience to its `ancestors` and its `descendants`. Ekthesis decides which audiences are related, and the checks of texts apply the table as written. A lexical rule scoped to an audience binds a text when that audience appears in the row of the audience of the text, in three cases:
 
@@ -66,9 +72,9 @@ The macro table holds one macro per entry of the notations composed for an outpu
 | `notation` | the record of the printed form: the notation declaring the entry, or the overlay that changed the entry |
 | `target` | the normalized target of the unit denoted by the entry, or null for an entry naming no unit by a logical target |
 | `name`, `body` | the macro name, and the TeX printed |
-| `arity`, `binder` | the number of mandatory arguments, and the position of the binding argument |
+| `arity`, `binder`, `list` | the number of mandatory arguments, the slot of the argument binding a variable, and the slot of the argument taking a list of items |
 | `entry` | true when the macro takes the entry argument |
-| `separator` | the string joining the items of a variadic operator |
+| `separator` | the string joining the items of the list |
 | `class` | the typographic class of the entry |
 
 ^macro-table
@@ -78,7 +84,7 @@ The parameters of a body depend on the entry argument:
 - when `entry` is true, the parameter `#1` holds the entry argument, optional with an empty default, and the mandatory arguments follow from `#2`;
 - otherwise, the mandatory arguments start at `#1`.
 
-MathJax cannot test whether an optional argument was supplied. Therefore, the body must print correctly with an empty entry argument. A variadic macro receives its items in its one argument, joined by its separator. ^parameters
+MathJax cannot test whether an optional argument was supplied. Therefore, the body must print correctly with an empty entry argument. A macro taking a list receives all its items in the argument at the slot `list`, joined by its separator. ^parameters
 
 A derived name is built from the identifier of its entry in three steps:
 

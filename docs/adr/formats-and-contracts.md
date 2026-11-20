@@ -55,7 +55,7 @@ The [record formats](../formats.md), the [configuration](../configuration.md) an
 
 **Collisions reported where their entries meet.** A collision is reported at the record that first brings its two entries together, and never again at a record importing it. ^collisions
 
-**Arguments from the denotes targets.** A macro takes its arity, its binder and its variadic flag from the unit that its entry denotes. ^arguments
+**Arguments derived from the facts of the unit.** The denotes targets state facts of the domain only: the number of arguments of a unit, the slot of its bound variable and the slot of its list. Onomasia derives the arity, the binder and the slot of the list of a macro from these facts. Therefore, the producer of the targets fixes no typographic choice, and a unit binding a variable over a list needs no special rule. ^arguments
 
 **Derived macro names under a reserved prefix.** An entry without a declared name receives a [name derived](../contracts.md#^names) from its identifier, under the prefix of the configuration. No declared name may start with the prefix. ^derived-names
 

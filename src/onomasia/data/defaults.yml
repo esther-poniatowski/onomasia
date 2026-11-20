@@ -110,13 +110,16 @@ checks:
     gloss: a macro takes more parameters than TeX admits
   missing-separator:
     severity: error
-    gloss: an entry denoting a variadic operator declares no separator of its items
+    gloss: an entry denoting a unit that takes a list declares no separator of its items
   macro-cycle:
     severity: error
     gloss: the bodies of macros call one another in a cycle, so their expansion never ends
   invalid-contract:
     severity: error
-    gloss: an input document breaks the schema of its contract or names another contract
+    gloss: the header of an input document breaks the schema of its contract or names another contract, so the document is skipped
+  invalid-item:
+    severity: error
+    gloss: an item of an input document breaks the schema of its contract, or names a slot that its unit cannot hold, so the item is skipped
   unresolved-output:
     severity: error
     gloss: an output of the build names a notation, an overlay or a glossary that no record holds

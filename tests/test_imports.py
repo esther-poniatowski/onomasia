@@ -667,15 +667,15 @@ def test_denotes_is_normalized_by_the_repository_holding_the_notation(tmp_path: 
         "targets": [
             {
                 "target": {"repository": LEXICON, "id": "model", "unit": "sum"},
-                "arity": 2,
-                "binder": 1,
+                "arguments": 2,
+                "bound": 1,
             },
             {
                 "target": {"repository": CONSUMER, "id": "model", "unit": "set"},
-                "arity": 1,
-                "variadic": True,
+                "arguments": 1,
+                "list": 1,
             },
-            {"target": {"repository": CONSUMER, "id": "model", "unit": "sum"}, "arity": 5},
+            {"target": {"repository": CONSUMER, "id": "model", "unit": "sum"}, "arguments": 5},
         ],
     }
     outputs = [

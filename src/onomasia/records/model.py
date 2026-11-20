@@ -273,7 +273,7 @@ class Entry:  # pylint: disable=too-many-instance-attributes
     entry_argument : bool
         Whether the macro takes the optional entry argument.
     separator : str | None
-        Separator of the items of a variadic macro.
+        Separator of the items of the list taken by the macro.
     status : str | None
         Status of the entry, None for the default status of the vocabulary.
     superseded_by : str | None

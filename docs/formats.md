@@ -156,8 +156,8 @@ Four keys of an entry fix its macro:
 
 - `name`, the macro name, a word of the letters A to Z in either case; an entry without a name receives a name derived from its identifier;
 - `entry`, true when the macro takes the optional entry argument, read by the body as `#1`;
-- `separator`, the string joining the items of a variadic operator, all passed in one argument;
-- `denotes`, whose target supplies the number of arguments, the binder and the variadic flag.
+- `separator`, the string joining the items of a list, all passed in one argument;
+- `denotes`, whose target supplies the number of arguments, the slot of the bound variable and the slot of the list.
 
 The [parameter rule](contracts.md#^parameters) maps these keys to the parameters of a macro. An entry also admits a `status` with its `superseded_by`, and `alternatives`, each giving another body under `body` with its contexts under `when`. ^macros
 
@@ -190,7 +190,7 @@ A status declaring no `in_texts` admits the use of its terms and caps no rule, a
 The packaged file `data/defaults.yml` lists every check, with its default severity and its gloss. The checks fall in three groups. The command `onomasia build` runs the first two and writes the outputs. The command `onomasia check` runs all three and writes nothing, so a consumer whose check passes has a build that passes. The first group of checks reads the records, their compositions and the overlays. The second group reads the outputs declared by the configuration:
 
 - the checks of each macro table built for an output: `reserved-prefix`, `macro-name-collision`, `ambiguous-target`, `too-many-parameters`, `missing-separator` and `macro-cycle`;
-- the check of the input documents, `invalid-contract`;
+- the checks of the input documents, `invalid-contract` and `invalid-item`;
 - the check of the outputs themselves, `unresolved-output`.
 
 The checks of the outputs see only the notations named by an output, so a notation named by no output escapes them.

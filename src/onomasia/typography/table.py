@@ -2,11 +2,13 @@
 Macro table: one macro per entry of a composition of notations, with its name, body and arguments.
 
 The arguments of a macro come from the unit that its entry denotes, as the denotes targets state
-them: its arity, its binder slot, and whether it takes a list of items. A unit of the denotes
+its facts: the number of its arguments, the slot of the argument binding a variable, and the slot
+of the argument taking a list of items. Each argument of the unit is one argument of the macro, a
+list included, whose items the separator of the entry joins. A unit of the denotes
 targets is matched with an entry by its normalized logical target, never by a text. An entry may
 also take the optional entry argument, which comes first. The table is checked as it is built: a
 declared name under the reserved prefix, two entries of one name, two entries of one unit, too many
-parameters, a variadic macro without separator, and bodies calling one another in a cycle.
+parameters, a macro taking a list without separator, and bodies calling one another in a cycle.
 
 Classes
 -------
@@ -44,21 +46,21 @@ CONTROL_WORD = re.compile(r"\\([A-Za-z]+)")
 @dataclass(frozen=True)
 class TargetSignature:
     """
-    Arguments of a unit, as its producer states them.
+    Arguments of a unit, as its producer states the facts of its domain.
 
     Attributes
     ----------
-    arity : int
-        Number of arguments, 1 for a variadic operator.
-    binder : int | None
-        Position, from 1, of the argument binding a variable.
-    variadic : bool
-        Whether the argument holds a list of items.
+    arguments : int
+        Number of arguments of the unit.
+    bound : int | None
+        Slot, from 1, of the argument binding a variable.
+    items : int | None
+        Slot, from 1, of the argument taking a list of items.
     """
 
-    arity: int = 0
-    binder: int | None = None
-    variadic: bool = False
+    arguments: int = 0
+    bound: int | None = None
+    items: int | None = None
 
 
 @dataclass(frozen=True)
@@ -84,8 +86,10 @@ class Macro:  # pylint: disable=too-many-instance-attributes
         Whether the optional entry argument comes first, as `#1`.
     binder : int | None
         Position of the mandatory argument binding a variable.
+    items : int | None
+        Position of the mandatory argument taking a list of items, joined by the separator.
     separator : str | None
-        Separator of the items of a variadic macro.
+        Separator of the items of the list taken by the macro.
     typographic_class : str | None
         Class of the entry.
     """
@@ -98,6 +102,7 @@ class Macro:  # pylint: disable=too-many-instance-attributes
     arity: int
     entry_argument: bool
     binder: int | None
+    items: int | None
     separator: str | None
     typographic_class: str | None
 
@@ -157,9 +162,10 @@ def _macro(
         target=entry.denotes,
         name=name,
         body=body,
-        arity=signature.arity,
+        arity=signature.arguments,
         entry_argument=entry.entry_argument,
-        binder=signature.binder,
+        binder=signature.bound,
+        items=signature.items,
         separator=entry.separator,
         typographic_class=entry.typographic_class,
     )
@@ -191,7 +197,7 @@ class _TableChecks:
             self._report(
                 "too-many-parameters", visible, macro.identifier, f"{macro.parameters} parameters"
             )
-        if signature.variadic and entry.separator is None:
+        if signature.items is not None and entry.separator is None:
             self._report(
                 "missing-separator",
                 visible,

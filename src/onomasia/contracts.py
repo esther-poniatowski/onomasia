@@ -93,20 +93,86 @@ class ScopeTable:
         return self.audiences.get(audience, frozenset({audience}))
 
 
-def _read(
-    path: Path, root: Path, contract: str, validator: SchemaValidator, sink: IssueSink
-) -> Mapping[str, object] | None:
-    """Read and validate one input document, reporting each defect on its path."""
-    resource = path.relative_to(root).as_posix() if path.is_relative_to(root) else str(path)
-    try:
-        data = yaml.safe_load(path.read_text(encoding="utf-8"))
-    except (OSError, yaml.YAMLError) as error:
-        sink.report("invalid-contract", resource, "", f"cannot read the document: {error}")
+def _item_of(pointer: str, collection: str) -> str | None:
+    """Return the key of the item of `collection` holding a violation, None outside every item.
+
+    Examples
+    --------
+    >>> _item_of("/targets/2/arguments", "targets"), _item_of("/sources/0", "targets")
+    ('2', None)
+    """
+    prefix = f"/{collection}/"
+    if not pointer.startswith(prefix):
         return None
-    violations = list(validator.contract_errors(CONTRACT_SCHEMAS[contract], data))
-    for pointer, message in violations:
-        sink.report("invalid-contract", resource, pointer, message)
-    return None if violations else cast(Mapping[str, object], data)
+    return pointer[len(prefix) :].split("/", 1)[0]
+
+
+@dataclass(frozen=True)
+class _Document:
+    """An input document that its header admits, with the keys of its invalid items."""
+
+    resource: str
+    data: Mapping[str, object]
+    invalid: frozenset[str]
+
+
+@dataclass(frozen=True)
+class _Reader:
+    """Reader of the input documents under one root, reporting each defect to one sink."""
+
+    root: Path
+    validator: SchemaValidator
+    sink: IssueSink
+
+    def read(self, path: Path, contract: str, collection: str) -> _Document | None:
+        """Read and validate one input document, reporting each defect on its path.
+
+        A violation inside one item of `collection` reports that item as `invalid-item`, and the
+        item is skipped; the other items stay. A violation outside every item, in the header of
+        the document, reports `invalid-contract`, and the whole document is skipped.
+        """
+        root = self.root
+        resource = path.relative_to(root).as_posix() if path.is_relative_to(root) else str(path)
+        try:
+            data = yaml.safe_load(path.read_text(encoding="utf-8"))
+        except (OSError, yaml.YAMLError) as error:
+            self.sink.report("invalid-contract", resource, "", f"cannot read the document: {error}")
+            return None
+        invalid: set[str] = set()
+        header = False
+        for pointer, message in self.validator.contract_errors(CONTRACT_SCHEMAS[contract], data):
+            item = _item_of(pointer, collection)
+            if item is None:
+                self.sink.report("invalid-contract", resource, pointer, message)
+                header = True
+            else:
+                self.sink.report("invalid-item", resource, pointer, message)
+                invalid.add(item)
+        if header:
+            return None
+        return _Document(resource, cast(Mapping[str, object], data), frozenset(invalid))
+
+
+def _slot_problem(item: Mapping[str, object]) -> tuple[str, str] | None:
+    """Return the field and the statement of a slot that the arguments of a unit cannot hold."""
+    arguments = cast(int, item["arguments"])
+    for field_name in ("bound", "list"):
+        slot = item.get(field_name)
+        if isinstance(slot, int) and slot > arguments:
+            return field_name, f"the slot {slot} exceeds the {arguments} arguments of the unit"
+    if item.get("bound") is not None and item.get("bound") == item.get("list"):
+        return "list", "one argument cannot both bind a variable and take a list of items"
+    return None
+
+
+def _signature(item: Mapping[str, object]) -> TargetSignature:
+    """Return the arguments of a unit from a valid item of the denotes targets."""
+    bound, items = item.get("bound"), item.get("list")
+    return TargetSignature(
+        arguments=int(cast(int, item["arguments"])),
+        bound=int(cast(int, bound)) if bound is not None else None,
+        items=int(cast(int, items)) if items is not None else None,
+    )
 
 
 def read_signatures(
@@ -122,34 +188,42 @@ def read_signatures(
 
     A target without repository names a unit of the consumer, so it is normalized by
     ``repository``, the identifier of the repository of the consumer; it stays without repository
-    when the consumer declares none, as the targets of its entries do."""
+    when the consumer declares none, as the targets of its entries do. An invalid item is reported
+    and skipped, and the other items of its document stay."""
+    reader = _Reader(root, validator, sink)
     signatures: dict[Target, TargetSignature] = {}
     for path in paths:
-        data = _read(path, root, DENOTES_TARGETS, validator, sink)
-        for item in cast(Sequence[Mapping[str, object]], (data or {}).get("targets", ())):
-            variadic = bool(item.get("variadic", False))
-            binder = item.get("binder")
+        document = reader.read(path, DENOTES_TARGETS, "targets")
+        if document is None:
+            continue
+        items = cast(Sequence[Mapping[str, object]], document.data.get("targets", ()))
+        for index, item in enumerate(items):
+            if str(index) in document.invalid:
+                continue
+            problem = _slot_problem(item)
+            if problem is not None:
+                pointer = f"/targets/{index}/{problem[0]}"
+                sink.report("invalid-item", document.resource, pointer, problem[1])
+                continue
             target = Target.parse(dict(cast(Mapping[str, str], item["target"])))
-            signatures[target.normalized(repository)] = TargetSignature(
-                arity=int(cast(int, item["arity"])),
-                binder=int(cast(int, binder)) if binder is not None else None,
-                variadic=variadic,
-            )
+            signatures[target.normalized(repository)] = _signature(item)
     return signatures
 
 
 def read_scope_table(
     path: Path, root: Path, validator: SchemaValidator, sink: IssueSink
 ) -> ScopeTable | None:
-    """Read a scope table, or None when it is invalid."""
-    data = _read(path, root, SCOPE_TABLE, validator, sink)
-    if data is None:
+    """Read a scope table, or None when its header is invalid; an invalid audience is reported
+    and skipped."""
+    document = _Reader(root, validator, sink).read(path, SCOPE_TABLE, "audiences")
+    if document is None:
         return None
-    audiences = cast(Mapping[str, Mapping[str, Sequence[str]]], data["audiences"])
+    audiences = cast(Mapping[str, Mapping[str, Sequence[str]]], document.data["audiences"])
     return ScopeTable(
         {
             audience: frozenset({audience, *scope["ancestors"], *scope["descendants"]})
             for audience, scope in audiences.items()
+            if audience not in document.invalid
         }
     )
 
@@ -188,6 +262,7 @@ def macro_table_document(table: MacroTable, sources: tuple[Source, ...]) -> dict
             "arity": macro.arity,
             "entry": macro.entry_argument,
             "binder": macro.binder,
+            "list": macro.items,
             "separator": macro.separator,
             "class": macro.typographic_class,
         }

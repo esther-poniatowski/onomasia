@@ -2,7 +2,7 @@
 Tests of the macro table, its serializations and the contract documents written by the build.
 
 One consumer exercises every feature: a class template, an entry argument, an operator with a
-binder, a variadic operator, an overlay, and the six products. Each planted defect expects exactly
+binder, an operator taking a list, an overlay, and the six products. Each planted defect expects exactly
 the issue of its check, and a build reporting an error writes nothing.
 """
 
@@ -79,8 +79,8 @@ TARGETS = {
     "contract": "onomasia:denotes-targets@3",
     "sources": [],
     "targets": [
-        {"target": _normalized("sum"), "arity": 2, "binder": 1},
-        {"target": _normalized("set"), "arity": 1, "variadic": True},
+        {"target": _normalized("sum"), "arguments": 2, "bound": 1},
+        {"target": _normalized("set"), "arguments": 1, "list": 1},
     ],
 }
 
@@ -218,6 +218,7 @@ def test_macro_table_takes_arguments_from_the_targets(tmp_path: Path) -> None:
     }
     assert (entries["sum-op"]["arity"], entries["sum-op"]["binder"]) == (2, 1)
     assert (entries["set-of"]["arity"], entries["set-of"]["separator"]) == (1, ",")
+    assert (entries["set-of"]["list"], entries["sum-op"]["list"]) == (1, None)
     assert (entries["w-entry"]["arity"], entries["w-entry"]["entry"]) == (0, True)
     assert entries["w-ff"]["body"] == "\\mathbf{V}" and entries["w-ff"]["name"] == "onowFf"
 
@@ -247,7 +248,7 @@ def test_macro_table_writes_the_normalized_target_or_null(tmp_path: Path) -> Non
 def test_denotes_target_without_repository_names_a_unit_of_the_consumer(tmp_path: Path) -> None:
     """A denotes target without repository is normalized by the repository of the consumer, so it
     matches the unit of an entry."""
-    targets = dict(TARGETS, targets=[{"target": _unit("sum"), "arity": 2, "binder": 1}])
+    targets = dict(TARGETS, targets=[{"target": _unit("sum"), "arguments": 2, "bound": 1}])
     root = _consumer(tmp_path, {"targets.yml": targets})
     _build(root)
     entries = {
@@ -330,7 +331,7 @@ PLANTED = {
     "too-many-parameters": (
         {
             "targets.yml": dict(
-                TARGETS, targets=[{"target": _normalized("weight-entry"), "arity": 9}]
+                TARGETS, targets=[{"target": _normalized("weight-entry"), "arguments": 9}]
             )
         },
         "/entries/w-entry",
@@ -349,9 +350,10 @@ PLANTED = {
         },
         "/entries/b",
     ),
-    "invalid-contract": (
-        {"targets.yml": dict(TARGETS, targets=[{"target": _normalized("x"), "arity": "two"}])},
-        "/targets/0/arity",
+    "invalid-contract": ({"targets.yml": dict(TARGETS, sources="none")}, "/sources"),
+    "invalid-item": (
+        {"targets.yml": dict(TARGETS, targets=[{"target": _normalized("x"), "arguments": "two"}])},
+        "/targets/0/arguments",
     ),
 }
 
@@ -404,3 +406,59 @@ def test_unresolved_output_is_reported_at_the_configuration_read(tmp_path: Path)
         for issue in result.issues
         if issue.check == UNRESOLVED_OUTPUT
     ] == [("config/onomasia-ci.yml", "/build/outputs/0/notations")]
+
+
+def _macros(root: Path) -> dict[str, dict[str, object]]:
+    """The entries of the macro table written by a build, by identifier."""
+    return {
+        entry["id"]: entry
+        for entry in yaml.safe_load((root / "out" / "table.yml").read_text())["entries"]
+    }
+
+
+def test_a_unit_binding_a_variable_over_a_list_takes_both_arguments(tmp_path: Path) -> None:
+    """The arguments of a unit are its domain facts: a unit binding a variable over a list takes
+    two arguments, one for the variable and one for the list, whose items the separator joins."""
+    targets = dict(
+        TARGETS,
+        targets=[
+            {"target": _normalized("sum"), "arguments": 2, "bound": 1},
+            {"target": _normalized("set"), "arguments": 2, "bound": 1, "list": 2},
+        ],
+    )
+    notation = _notation(
+        **{"set-of": {"denotes": _unit("set"), "body": "\\{#1 : #2\\}", "separator": ","}}
+    )
+    root = _consumer(tmp_path, {"targets.yml": targets, "notation.yml": notation})
+    _build(root)
+    entry = _macros(root)["set-of"]
+    assert (entry["arity"], entry["binder"], entry["list"]) == (2, 1, 2)
+
+
+def test_an_invalid_item_is_skipped_and_the_others_stay(tmp_path: Path) -> None:
+    """An invalid item of the denotes targets is reported alone; the valid items still give their
+    arguments, so one defect does not discard the whole document."""
+    targets = dict(
+        TARGETS,
+        targets=[
+            {"target": _normalized("sum"), "arguments": 2, "bound": 1},
+            {"target": _normalized("set"), "arguments": 1, "list": 3},
+        ],
+    )
+    result = _build(_consumer(tmp_path, {"targets.yml": targets}))
+    assert [
+        (issue.check, issue.pointer) for issue in result.issues if issue.check == "invalid-item"
+    ] == [("invalid-item", "/targets/1/list")]
+    root = _consumer(tmp_path, {"targets.yml": dict(TARGETS, targets=[targets["targets"][0]])})
+    _build(root)
+    assert _macros(root)["sum-op"]["arity"] == 2
+
+
+def test_a_slot_shared_by_the_variable_and_the_list_is_invalid(tmp_path: Path) -> None:
+    targets = dict(
+        TARGETS, targets=[{"target": _normalized("set"), "arguments": 1, "bound": 1, "list": 1}]
+    )
+    result = _build(_consumer(tmp_path, {"targets.yml": targets}))
+    assert ("invalid-item", "/targets/0/list") in {
+        (issue.check, issue.pointer) for issue in result.issues
+    }

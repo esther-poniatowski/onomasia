@@ -58,6 +58,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   a unit of the consumer: Onomasia normalizes it by the identifier of the consumer. Each unit is
   matched with an entry by its normalized target. The lookup lists its units under `targets` as an array of `{target, name}`, ordered by
   the repository, the identifier and the unit of the target.
+- **Breaking:** a unit of `onomasia:denotes-targets@3` states three facts of its domain, and the
+  keys `arity`, `binder` and `variadic` are retired:
+  - `arguments`, the number of its arguments;
+  - `bound`, the slot of its bound variable;
+  - `list`, the slot of its list.
+
+  Onomasia derives the arity of a macro from `arguments`, and each entry of
+  `onomasia:macro-table@2` gains `list`.
+- The new check `invalid-item` reports an item of an input document breaking its schema, or naming
+  a slot outside its unit. Onomasia skips that item and keeps the other items. The check
+  `invalid-contract` now covers the header of a document only.
 - The schemas of `onomasia:glossary@1` and `onomasia:notation@1` move to `glossary.v1.schema.yml`
   and `notation.v1.schema.yml`; Onomasia still reads both versions.
 - The schema of `onomasia:overlay@1` moves to `overlay.v1.schema.yml`.

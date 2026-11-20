@@ -1,7 +1,9 @@
 # Contract onomasia:denotes-targets@3: the units that a key denotes may name, each as a logical
-# target, with their arguments. A target without repository names a unit of the repository reading
-# the document. Gnomon generates it; Onomasia takes from it the arguments of each macro, matching a
-# unit to an entry by its normalized target.
+# target, with the facts of its domain: the number of its arguments, the slot of the argument that
+# binds a variable, and the slot of the argument that takes a list of items. The facts carry no
+# typography: Onomasia derives the arguments of each macro from them. A target without repository
+# names a unit of the repository reading the document. Onomasia matches a unit to an entry by its
+# normalized target.
 $schema: https://json-schema.org/draft/2020-12/schema
 $id: denotes-targets.schema.yml
 title: Denotes targets
@@ -16,17 +18,27 @@ properties:
     items:
       type: object
       additionalProperties: false
-      required: [target, arity]
+      required: [target, arguments]
       properties:
         target:
           $ref: 'https://github.com/esther-poniatowski/anagraphe/schemas/addressing.v1.schema.yml#/$defs/target'
           required: [id, unit]
-        arity: {type: integer, minimum: 0}
-        binder: {type: integer, minimum: 1}
-        variadic: {type: boolean}
+        arguments:
+          description: the number of arguments of the unit
+          type: integer
+          minimum: 0
+        bound:
+          description: the slot, counted from 1, of the argument that binds a variable
+          type: integer
+          minimum: 1
+        list:
+          description: the slot, counted from 1, of the argument that takes a list of items
+          type: integer
+          minimum: 1
 examples:
   - contract: 'onomasia:denotes-targets@3'
     sources: []
     targets:
-      - {target: {repository: mixture, id: mixture-model, unit: sum}, arity: 2, binder: 1}
-      - {target: {id: mixture-model, unit: set}, arity: 1, variadic: true}
+      - {target: {repository: mixture, id: mixture-model, unit: sum}, arguments: 2, bound: 1}
+      - {target: {id: mixture-model, unit: set}, arguments: 1, list: 1}
+      - {target: {id: mixture-model, unit: union}, arguments: 2, bound: 1, list: 2}
