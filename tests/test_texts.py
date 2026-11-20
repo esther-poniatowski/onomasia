@@ -161,7 +161,7 @@ def test_note_without_binding_is_not_checked(tmp_path: Path) -> None:
 
 def test_scope_table_extends_the_audiences_of_a_text(tmp_path: Path) -> None:
     table = {
-        "contract": "onomasia:scope-table@1",
+        "_schema": "onomasia:scope-table@1",
         "sources": [],
         "audiences": {"ml": {"ancestors": ["physics"], "descendants": []}},
     }

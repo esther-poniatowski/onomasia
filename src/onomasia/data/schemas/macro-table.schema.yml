@@ -6,9 +6,9 @@ $id: macro-table.schema.yml
 title: Macro table
 type: object
 additionalProperties: false
-required: [contract, sources, notations, overlays, entries]
+required: [_schema, sources, notations, overlays, entries]
 properties:
-  contract: {const: 'onomasia:macro-table@2'}
+  _schema: {const: 'onomasia:macro-table@2'}
   sources: {$ref: 'common.schema.yml#/$defs/sources'}
   inputs: {$ref: 'common.schema.yml#/$defs/inputs'}
   notations: {type: array, items: {$ref: 'common.schema.yml#/$defs/id'}}
@@ -36,7 +36,7 @@ properties:
         separator: {type: [string, 'null']}
         class: {type: [string, 'null']}
 examples:
-  - contract: 'onomasia:macro-table@2'
+  - _schema: 'onomasia:macro-table@2'
     sources: []
     inputs:
       - repository: lexicon

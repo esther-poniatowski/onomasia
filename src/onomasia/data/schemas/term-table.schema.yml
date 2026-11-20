@@ -5,9 +5,9 @@ $id: term-table.schema.yml
 title: Term table
 type: object
 additionalProperties: false
-required: [contract, sources, glossary, terms]
+required: [_schema, sources, glossary, terms]
 properties:
-  contract: {const: 'onomasia:term-table@1'}
+  _schema: {const: 'onomasia:term-table@1'}
   sources: {$ref: 'common.schema.yml#/$defs/sources'}
   inputs: {$ref: 'common.schema.yml#/$defs/inputs'}
   glossary: {$ref: 'common.schema.yml#/$defs/id'}
@@ -43,7 +43,7 @@ properties:
               pattern: '^[0-9a-f]{40}([0-9a-f]{24})?$'
               description: The commit at which a record of another repository was read.
 examples:
-  - contract: 'onomasia:term-table@1'
+  - _schema: 'onomasia:term-table@1'
     sources: []
     inputs:
       - repository: lexicon

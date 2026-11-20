@@ -19,7 +19,7 @@ The contracts of Onomasia fix the documents exchanged between Onomasia and the o
 
 ## Common fields
 
-Every document names its contract under `contract`, and the records behind it under `sources`. Each item of `sources` describes one repository by three fields:
+Every document names its contract under `_schema`, as each [record](formats.md) names its format. Therefore, a registry of schemas can select the contract of a document. Every document also names the records behind it under `sources`. Each item of `sources` describes one repository by three fields:
 
 - `repository`, the location of the repository, without the user information that a remote URL may hold;
 - `commit`, the full identifier of its commit;

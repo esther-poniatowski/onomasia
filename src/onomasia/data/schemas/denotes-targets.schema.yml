@@ -9,9 +9,9 @@ $id: denotes-targets.schema.yml
 title: Denotes targets
 type: object
 additionalProperties: false
-required: [contract, sources, targets]
+required: [_schema, sources, targets]
 properties:
-  contract: {const: 'onomasia:denotes-targets@3'}
+  _schema: {const: 'onomasia:denotes-targets@3'}
   sources: {$ref: 'common.schema.yml#/$defs/sources'}
   targets:
     type: array
@@ -36,7 +36,7 @@ properties:
           type: integer
           minimum: 1
 examples:
-  - contract: 'onomasia:denotes-targets@3'
+  - _schema: 'onomasia:denotes-targets@3'
     sources: []
     targets:
       - {target: {repository: mixture, id: mixture-model, unit: sum}, arguments: 2, bound: 1}

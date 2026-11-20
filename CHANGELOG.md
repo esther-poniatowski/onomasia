@@ -66,6 +66,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
   Onomasia derives the arity of a macro from `arguments`, and each entry of
   `onomasia:macro-table@2` gains `list`.
+- **Breaking:** every document of the five contracts of Onomasia names its contract under
+  `_schema` instead of `contract`, as every record names its format. A registry of schemas can
+  therefore select these contracts. A document naming its contract under `contract` is reported by
+  `invalid-contract` and skipped.
 - The new check `invalid-item` reports an item of an input document breaking its schema, or naming
   a slot outside its unit. Onomasia skips that item and keeps the other items. The check
   `invalid-contract` now covers the header of a document only.

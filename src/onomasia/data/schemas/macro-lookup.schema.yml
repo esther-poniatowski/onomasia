@@ -7,9 +7,9 @@ $id: macro-lookup.schema.yml
 title: Macro lookup
 type: object
 additionalProperties: false
-required: [contract, sources, notations, targets]
+required: [_schema, sources, notations, targets]
 properties:
-  contract: {const: 'onomasia:macro-lookup@2'}
+  _schema: {const: 'onomasia:macro-lookup@2'}
   sources: {$ref: 'common.schema.yml#/$defs/sources'}
   inputs: {$ref: 'common.schema.yml#/$defs/inputs'}
   notations: {type: array, items: {$ref: 'common.schema.yml#/$defs/id'}}
@@ -23,7 +23,7 @@ properties:
         target: {$ref: 'common.schema.yml#/$defs/unit-target'}
         name: {type: string, pattern: '^[A-Za-z]+$'}
 examples:
-  - contract: 'onomasia:macro-lookup@2'
+  - _schema: 'onomasia:macro-lookup@2'
     sources: []
     notations: [mixture]
     targets:

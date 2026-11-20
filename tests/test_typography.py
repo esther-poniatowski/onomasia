@@ -76,7 +76,7 @@ GLOSSARY = {
 }
 
 TARGETS = {
-    "contract": "onomasia:denotes-targets@3",
+    "_schema": "onomasia:denotes-targets@3",
     "sources": [],
     "targets": [
         {"target": _normalized("sum"), "arguments": 2, "bound": 1},
@@ -171,7 +171,7 @@ def test_documents_follow_their_contracts(tmp_path: Path, path: str, contract: s
     _build(root)
     data = yaml.safe_load((root / "out" / path).read_text(encoding="utf-8"))
     assert list(SchemaValidator().contract_errors(CONTRACT_SCHEMAS[contract], data)) == []
-    assert data["contract"] == contract and data["sources"] == [SOURCE.to_data()]
+    assert data["_schema"] == contract and data["sources"] == [SOURCE.to_data()]
 
 
 @pytest.mark.skipif(shutil.which("git") is None, reason="the command git is absent")
@@ -462,3 +462,10 @@ def test_a_slot_shared_by_the_variable_and_the_list_is_invalid(tmp_path: Path) -
     assert ("invalid-item", "/targets/0/list") in {
         (issue.check, issue.pointer) for issue in result.issues
     }
+
+
+def test_a_document_binding_its_contract_under_contract_is_skipped(tmp_path: Path) -> None:
+    """A document binds its contract under `_schema`; the former key `contract` breaks the header."""
+    targets = {"contract" if key == "_schema" else key: value for key, value in TARGETS.items()}
+    result = _build(_consumer(tmp_path, {"targets.yml": targets}))
+    assert {""} == {issue.pointer for issue in result.issues if issue.check == "invalid-contract"}

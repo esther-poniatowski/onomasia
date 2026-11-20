@@ -5,9 +5,9 @@ $id: scope-table.schema.yml
 title: Scope table
 type: object
 additionalProperties: false
-required: [contract, sources, audiences]
+required: [_schema, sources, audiences]
 properties:
-  contract: {const: 'onomasia:scope-table@1'}
+  _schema: {const: 'onomasia:scope-table@1'}
   sources: {$ref: 'common.schema.yml#/$defs/sources'}
   audiences:
     type: object
