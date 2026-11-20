@@ -79,7 +79,8 @@ def latex_definitions(table: MacroTable) -> list[str]:
 
     Examples
     --------
-    >>> macro = Macro("w", "n", None, "W", "\\\\boldsymbol{W}_{#1}", 0, True, None, None, None)
+    >>> body = "\\\\boldsymbol{W}_{#1}"
+    >>> macro = Macro("w", "n", None, "W", body, 0, True, None, None, None, None)
     >>> latex_definitions(MacroTable(("n",), (), (macro,)))
     ['\\\\newcommand{\\\\W}[1][]{\\\\boldsymbol{W}_{#1}}']
     """
