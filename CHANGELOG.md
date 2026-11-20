@@ -61,6 +61,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- The schema registry exports the five contracts of Onomasia beside its record formats, so that a
+  producer or a reader of these documents selects them through its own registry. Kleisis now
+  reads `config/tools/kleisis.yml`, which `hodegos.yml` declares, and the record
+  `specs/schema-resources.yml` is retired. The keywords `x-identifier` and `x-target-contract`
+  come from the registry of Anagraphe.
 - **Breaking:** Hodegos locates the root of a command and the file `onomasia.yml`. The file lies at
   the root, in its subfolder `.config/`, or in a folder that the `hodegos.yml` of the root
   declares. `config/tools/onomasia.yml` is read only when `hodegos.yml` lists `config/tools`.

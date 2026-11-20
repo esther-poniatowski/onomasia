@@ -1,0 +1,34 @@
+# Configuration of Kleisis for the schemas of Onomasia: its record formats and the five contracts
+# of the documents that it reads and writes.
+_schema: kleisis:configuration@1
+
+paths:
+  owned_schemas: src/onomasia/data/schemas
+  registry: specs/schema-registry.yml
+
+exports:
+  - onomasia:glossary@1
+  - onomasia:glossary@2
+  - onomasia:notation@1
+  - onomasia:notation@2
+  - onomasia:overlay@1
+  - onomasia:overlay@2
+  - onomasia:denotes-targets@3
+  - onomasia:scope-table@1
+  - onomasia:macro-table@2
+  - onomasia:macro-lookup@2
+  - onomasia:term-table@1
+
+dependencies:
+  # Anagraphe supplies the addressing schema that the logical targets of the records reference by
+  # its absolute $id, and declares the keywords x-identifier and x-target-contract that the
+  # schemas use. No contract of Anagraphe is selected.
+  - id: anagraphe
+    source:
+      kind: git
+      repository: https://github.com/esther-poniatowski/anagraphe.git
+      commit: f0dd917620e56a2fe0ce0675f8024770b69c9c47
+      archive_roots:
+        - packages/read-python/src/anagraphe_read/data/schemas
+        - specs/schema-registry.yml
+    registry: specs/schema-registry.yml
